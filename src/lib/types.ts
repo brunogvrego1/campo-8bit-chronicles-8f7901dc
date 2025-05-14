@@ -1,3 +1,4 @@
+
 export interface PlayerProfile {
   name: string;
   age: number;
@@ -6,13 +7,17 @@ export interface PlayerProfile {
   startClub: string;
   createdAt?: string;
   attributes: {
-    pace: number;
+    speed: number;
+    physical: number;
     shooting: number;
+    heading: number;
+    charisma: number;
     passing: number;
+    defense: number;
+    // For backwards compatibility with existing code
+    pace: number;
     dribbling: number;
     defending: number;
-    physical: number;
-    [key: string]: number;
   };
   careerStats?: {
     followers: number;
@@ -98,7 +103,7 @@ export interface GameResponse {
   xpGain?: number;
   attributeFocus?: keyof PlayerProfile['attributes'] | null;
   attributeImproved?: {
-    name: keyof PlayerProfile['attributes'];
+    name: keyof PlayerProfile['attributes']; 
     oldValue: number;
     newValue: number;
   };

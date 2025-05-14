@@ -141,7 +141,11 @@ const GameScreen = () => {
       }
       
       // Add summary about the career progress
-      postGameNarrative += `\n\n<cyan>Primeira semana concluída: ${positiveOutcomes} momentos positivos, ${negativeOutcomes} desafios, ${choiceLog.length - positiveOutcomes - negativeOutcomes} situações neutras.</cyan>`;
+      const positiveOutcomesText = String(positiveOutcomes);
+      const negativeOutcomesText = String(negativeOutcomes);
+      const neutralOutcomes = String(choiceLog.length - positiveOutcomes - negativeOutcomes);
+      
+      postGameNarrative += `\n\n<cyan>Primeira semana concluída: ${positiveOutcomesText} momentos positivos, ${negativeOutcomesText} desafios, ${neutralOutcomes} situações neutras.</cyan>`;
       
       // Update the narrative with the post-game summary
       setCurrentNarrative(postGameNarrative);

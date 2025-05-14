@@ -586,6 +586,23 @@ export const gameService = {
       ? choiceLog[choiceLog.length - 1].timeline 
       : generateInitialTimeline();
     
+    // Check if this is a specific action that we need to handle differently
+    const lastChoice = choiceLog.length > 0 ? choiceLog[choiceLog.length - 1] : null;
+    
+    // Look for "Analisar Patrocínios" option
+    if (lastChoice && 
+        lastChoice.nextEvent && 
+        (lastChoice.nextEvent.labelA === "Analisar Patrocínios" || lastChoice.nextEvent.labelB === "Analisar Patrocínios")) {
+      
+      if ((choice === 'A' && lastChoice.nextEvent.labelA === "Analisar Patrocínios") || 
+          (choice === 'B' && lastChoice.nextEvent.labelB === "Analisar Patrocínios")) {
+        
+        // The user chose to analyze sponsorships, generate a sponsor event
+        return generateSponsorEvent(playerProfile, 'A', currentTimeline);
+      }
+    }
+    
+    // Default behavior for other choices
     return generateRandomEvent(playerProfile, choice, currentTimeline);
   }
 };
