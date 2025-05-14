@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -150,7 +151,7 @@ body {
   border-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQYV2NkYGBg4A+EQAgEAHABAAegA5gBAAAAAP//AADvIAFcByMAAAAASUVORK5CYII=") 2 repeat;
 }
 
-/* Cores para as narrativas de jogo */
+/* Cores para as narrativas de jogo - atualizadas */
 .cyan-text {
   color: #2dd4bf; /* Tailwind cyan-400 */
   font-weight: 500;
@@ -164,4 +165,22 @@ body {
 .magenta-text {
   color: #e879f9; /* Tailwind fuchsia-400 */
   font-weight: 500;
+}
+
+/* Game event notification background styles */
+.notification-bg-black {
+  background-color: rgba(0, 0, 0, 0.9);
+  border: 1px solid;
+}
+
+.notification-border-cyan {
+  border-color: #2dd4bf;
+}
+
+.notification-border-yellow {
+  border-color: #fbbf24;
+}
+
+.notification-border-magenta {
+  border-color: #e879f9;
 }
