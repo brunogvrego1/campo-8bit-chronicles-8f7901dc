@@ -3,7 +3,6 @@ import { useGameStore } from '@/store/gameStore';
 import CreatePlayer from './CreatePlayer';
 import GameScreen from './GameScreen';
 import HistoryView from './HistoryView';
-import ApiKeyInput from './ApiKeyInput';
 import { useEffect } from 'react';
 import { initializeOpenAI } from '@/services/gameService';
 
@@ -35,7 +34,6 @@ const Layout = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md border-4 border-cyan p-2 bg-black">
-        <ApiKeyInput />
         {renderScreen()}
       </div>
       
