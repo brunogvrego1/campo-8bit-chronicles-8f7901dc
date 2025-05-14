@@ -4,126 +4,15 @@ export interface PlayerProfile {
   age: number;
   nationality: string;
   position: string;
-  startClub: string;
-  createdAt?: string;
-  attributes: {
-    speed: number;
-    physical: number;
-    shooting: number;
-    heading: number;
-    charisma: number;
-    passing: number;
-    defense: number;
-    // For backwards compatibility with existing code
-    pace: number;
-    dribbling: number;
-    defending: number;
-  };
-  careerStats?: {
-    followers: number;
-    goals?: number;
-    assists?: number;
-    appearances?: number;
-    [key: string]: number | undefined;
-  };
-}
-
-export interface NationalityOption {
-  value: string;
-  label: string;
-  code: string;
-  name: string;
-  flag: string;
-  league: string;
-  startClub: string;
-}
-
-export interface PositionOption {
-  value: string;
-  label: string;
-  code: string;
-  name: string;
+  startClub?: string;
+  createdAt: string;
 }
 
 export interface Choice {
   id: number;
   event: string;
-  choice: 'A' | 'B';
+  choice: string | null;
   timestamp: string;
-  narrative?: string;
-  nextEvent?: {
-    labelA: string;
-    labelB: string;
-  };
-  outcome?: {
-    type: 'POSITIVO' | 'NEGATIVO' | 'NEUTRO' | 'DECISIVO' | 'ESTRATÉGICO';
-    message: string;
-  };
-  timeline?: TimelineEvent[];
-  xpGain?: number;
-  attributeFocus?: keyof PlayerProfile['attributes'] | null;
-  matchStats?: {
-    goals: number;
-    assists: number;
-    rating: number;
-    keyDefenses: number;
-  };
-  attributeImproved?: {
-    name: keyof PlayerProfile['attributes'];
-    oldValue: number;
-    newValue: number;
-  };
-}
-
-export interface TimelineEvent {
-  slot: number;
-  type: string;
-  subType?: string;
-  choice: 'A' | 'B' | null;
-  result: string | null;
-}
-
-export interface GameResponse {
-  narrative: string;
-  nextEvent: {
-    labelA: string;
-    labelB: string;
-  };
-  outcome: {
-    type: 'POSITIVO' | 'NEGATIVO' | 'NEUTRO' | 'DECISIVO' | 'ESTRATÉGICO';
-    message: string;
-  };
-  timeline: TimelineEvent[];
-  matchStats?: {
-    goals: number;
-    assists: number;
-    rating: number;
-    keyDefenses: number;
-  };
-  xpGain?: number;
-  attributeFocus?: keyof PlayerProfile['attributes'] | null;
-  attributeImproved?: {
-    name: keyof PlayerProfile['attributes']; 
-    oldValue: number;
-    newValue: number;
-  };
-}
-
-export interface PlayerStats {
-  matches: number;
-  goals: number;
-  assists: number;
-  keyDefenses: number;
-  age: number;
-  followers: number;
-}
-
-export interface SeasonStats {
-  goals: number;
-  assists: number;
-  appearances: number;
-  averageRating: number;
-  totalRating: number;
 }
 
 export interface GameState {
@@ -136,12 +25,27 @@ export interface GameState {
   } | null;
   isLoading: boolean;
   gameStarted: boolean;
-  gameEnded: boolean;
   activeScreen: "creation" | "game" | "history";
   creationStep: number;
-  xpPool: number;
-  attributeFocus: keyof PlayerProfile['attributes'] | null;
-  weekCount: number;
-  seasonStats: SeasonStats;
-  careerStats: PlayerStats;
+}
+
+export interface NationalityOption {
+  code: string;
+  name: string;
+  flag: string;
+  startClub: string;
+  league: string;
+}
+
+export interface PositionOption {
+  code: string;
+  name: string;
+}
+
+export interface GameResponse {
+  narrative: string;
+  nextEvent: {
+    labelA: string;
+    labelB: string;
+  };
 }
