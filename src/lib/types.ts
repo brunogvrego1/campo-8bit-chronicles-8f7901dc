@@ -14,6 +14,10 @@ export interface Choice {
   choice: string | null;
   timestamp: string;
   narrative?: string;
+  nextEvent?: {
+    labelA: string;
+    labelB: string;
+  };
   outcome?: {
     type: "POSITIVO" | "NEGATIVO" | "NEUTRO" | "DECISIVO" | "ESTRATÉGICO";
     message: string;

@@ -51,6 +51,7 @@ const GameScreen = () => {
         choice,
         timestamp: new Date().toISOString(),
         narrative: currentNarrative, // Save current narrative (before the choice)
+        nextEvent: nextOptions, // Save the options that were presented
         outcome: response.outcome // Save outcome of the choice
       };
       
