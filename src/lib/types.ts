@@ -1,3 +1,4 @@
+
 export interface PlayerProfile {
   name: string;
   age: number;
@@ -19,11 +20,18 @@ export interface PlayerProfile {
 export interface NationalityOption {
   value: string;
   label: string;
+  code: string;
+  name: string;
+  flag: string;
+  league: string;
+  startClub: string;
 }
 
 export interface PositionOption {
   value: string;
   label: string;
+  code: string;
+  name: string;
 }
 
 export interface Choice {
