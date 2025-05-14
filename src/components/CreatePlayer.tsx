@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { NationalityOption, PositionOption, PlayerProfile } from '@/lib/types';
@@ -7,14 +6,14 @@ import { getDeepSeekChatCompletion } from '@/services/deepseekService';
 import { useToast } from '@/hooks/use-toast';
 
 const nationalities: NationalityOption[] = [
-  { code: 'BR', name: 'Brasil', flag: '🇧🇷', league: 'Brasileirão' },
-  { code: 'US', name: 'EUA', flag: '🇺🇸', league: 'MLS' },
-  { code: 'FR', name: 'França', flag: '🇫🇷', league: 'Ligue 1' },
-  { code: 'JP', name: 'Japão', flag: '🇯🇵', league: 'J-League' },
-  { code: 'AR', name: 'Argentina', flag: '🇦🇷', league: 'Primera División' },
-  { code: 'ES', name: 'Espanha', flag: '🇪🇸', league: 'La Liga' },
-  { code: 'DE', name: 'Alemanha', flag: '🇩🇪', league: 'Bundesliga' },
-  { code: 'IT', name: 'Itália', flag: '🇮🇹', league: 'Serie A' },
+  { code: 'BR', name: 'Brasil', flag: '🇧🇷', league: 'Brasileirão', startClub: '' },
+  { code: 'US', name: 'EUA', flag: '🇺🇸', league: 'MLS', startClub: '' },
+  { code: 'FR', name: 'França', flag: '🇫🇷', league: 'Ligue 1', startClub: '' },
+  { code: 'JP', name: 'Japão', flag: '🇯🇵', league: 'J-League', startClub: '' },
+  { code: 'AR', name: 'Argentina', flag: '🇦🇷', league: 'Primera División', startClub: '' },
+  { code: 'ES', name: 'Espanha', flag: '🇪🇸', league: 'La Liga', startClub: '' },
+  { code: 'DE', name: 'Alemanha', flag: '🇩🇪', league: 'Bundesliga', startClub: '' },
+  { code: 'IT', name: 'Itália', flag: '🇮🇹', league: 'Serie A', startClub: '' },
 ];
 
 const positions: PositionOption[] = [
