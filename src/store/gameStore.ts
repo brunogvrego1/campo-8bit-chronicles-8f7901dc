@@ -17,7 +17,7 @@ const initialState: GameState = {
 export const useGameStore = create<GameState & {
   setPlayerProfile: (profile: PlayerProfile) => void;
   addChoice: (choice: Choice) => void;
-  setCurrentNarrative: (narrative: string) => void;
+  setCurrentNarrative: (narrative: string | ((prev: string) => string)) => void;
   setNextOptions: (options: { labelA: string; labelB: string; }) => void;
   setLoading: (isLoading: boolean) => void;
   startGame: () => void;
@@ -37,8 +37,8 @@ export const useGameStore = create<GameState & {
         choiceLog: [...state.choiceLog, choice] 
       })),
       
-      setCurrentNarrative: (narrative) => set(() => ({ 
-        currentNarrative: narrative 
+      setCurrentNarrative: (narrative) => set((state) => ({ 
+        currentNarrative: typeof narrative === 'function' ? narrative(state.currentNarrative) : narrative 
       })),
       
       setNextOptions: (options) => set(() => ({ 
