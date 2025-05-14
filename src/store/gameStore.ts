@@ -33,32 +33,7 @@ const initialState: GameState = {
   }
 };
 
-export const useGameStore = create<GameState & {
-  setPlayerProfile: (profile: PlayerProfile) => void;
-  addChoice: (choice: Choice) => void;
-  setCurrentNarrative: (narrative: string) => void;
-  setNextOptions: (options: { labelA: string; labelB: string; }) => void;
-  setLoading: (isLoading: boolean) => void;
-  startGame: () => void;
-  endGame: () => void;
-  setActiveScreen: (screen: "creation" | "game" | "history") => void;
-  setCreationStep: (step: number) => void;
-  resetGame: () => void;
-  addXp: (amount: number) => void;
-  setAttributeFocus: (attribute: keyof PlayerProfile['attributes'] | null) => void;
-  processWeekEnd: () => void;
-  updateAttribute: (attribute: keyof PlayerProfile['attributes'], newValue: number) => void;
-  addToSeasonStats: (stats: { goals?: number, assists?: number, rating?: number }) => void;
-  resetSeasonStats: () => void;
-  updateCareerStats: (stats: { 
-    matches?: number, 
-    goals?: number, 
-    assists?: number, 
-    keyDefenses?: number, 
-    followers?: number 
-  }) => void;
-  incrementAge: () => void;
-})()(
+export const useGameStore = create(
   persist(
     (set, get) => ({
       ...initialState,
