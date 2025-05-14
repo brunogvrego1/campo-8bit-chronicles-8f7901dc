@@ -3,16 +3,18 @@ import { useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { NationalityOption, PositionOption, PlayerProfile } from '@/lib/types';
 import { gameService } from '@/services/gameService';
+import { getDeepSeekChatCompletion } from '@/services/deepseekService';
+import { useToast } from '@/hooks/use-toast';
 
 const nationalities: NationalityOption[] = [
-  { code: 'BR', name: 'Brasil', flag: '🇧🇷', startClub: 'Avaí', league: 'Série B' },
-  { code: 'US', name: 'EUA', flag: '🇺🇸', startClub: 'LA Galaxy II', league: 'MLS Next Pro' },
-  { code: 'FR', name: 'França', flag: '🇫🇷', startClub: 'Sochaux', league: 'Ligue 2' },
-  { code: 'JP', name: 'Japão', flag: '🇯🇵', startClub: 'FC Ryukyu', league: 'J2' },
-  { code: 'AR', name: 'Argentina', flag: '🇦🇷', startClub: 'Aldosivi', league: 'Primera B' },
-  { code: 'ES', name: 'Espanha', flag: '🇪🇸', startClub: 'Málaga', league: 'Segunda División' },
-  { code: 'DE', name: 'Alemanha', flag: '🇩🇪', startClub: 'Dynamo Dresden', league: '3. Liga' },
-  { code: 'IT', name: 'Itália', flag: '🇮🇹', startClub: 'Pescara', league: 'Serie C' },
+  { code: 'BR', name: 'Brasil', flag: '🇧🇷', league: 'Brasileirão' },
+  { code: 'US', name: 'EUA', flag: '🇺🇸', league: 'MLS' },
+  { code: 'FR', name: 'França', flag: '🇫🇷', league: 'Ligue 1' },
+  { code: 'JP', name: 'Japão', flag: '🇯🇵', league: 'J-League' },
+  { code: 'AR', name: 'Argentina', flag: '🇦🇷', league: 'Primera División' },
+  { code: 'ES', name: 'Espanha', flag: '🇪🇸', league: 'La Liga' },
+  { code: 'DE', name: 'Alemanha', flag: '🇩🇪', league: 'Bundesliga' },
+  { code: 'IT', name: 'Itália', flag: '🇮🇹', league: 'Serie A' },
 ];
 
 const positions: PositionOption[] = [
@@ -26,11 +28,14 @@ const positions: PositionOption[] = [
 
 const CreatePlayer = () => {
   const { creationStep, setCreationStep, setPlayerProfile, setCurrentNarrative, setNextOptions, startGame } = useGameStore();
+  const { toast } = useToast();
   
   const [name, setName] = useState('');
   const [age, setAge] = useState<number | null>(null);
   const [nationality, setNationality] = useState<NationalityOption | null>(null);
   const [position, setPosition] = useState<PositionOption | null>(null);
+  const [startClub, setStartClub] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   
   const handleNext = () => {
     setCreationStep(creationStep + 1);
@@ -40,9 +45,77 @@ const CreatePlayer = () => {
     setCreationStep(creationStep - 1);
   };
   
+  const generateRandomClub = async () => {
+    if (!nationality) return null;
+    
+    setIsLoading(true);
+    try {
+      const prompt = `Gere um nome de clube de futebol ${nationality.name} para um jogador iniciante.
+      
+      Distribua a qualidade do clube com estas probabilidades:
+      - 5% chance de ser um clube de elite (top tier)
+      - 10% chance de ser um clube bom (upper mid-tier)
+      - 60% chance de ser um clube de segunda divisão (lower mid-tier)
+      - 25% chance de ser um clube pequeno ou muito pequeno (bottom tier)
+      
+      Retorne APENAS o nome do clube em formato JSON sem nenhum texto adicional:
+      { "clubName": "Nome do Clube" }`;
+      
+      const response = await getDeepSeekChatCompletion([
+        { role: "system", content: "Você é um assistente que gera nomes de clubes de futebol aleatórios com base em probabilidades. Responda apenas em JSON conforme solicitado." },
+        { role: "user", content: prompt }
+      ]);
+      
+      let clubName;
+      try {
+        const jsonResponse = JSON.parse(response.content);
+        clubName = jsonResponse.clubName;
+      } catch (e) {
+        // Fallback in case parsing fails
+        const textContent = response.content;
+        const jsonMatch = textContent.match(/\{[^}]*\}/);
+        if (jsonMatch) {
+          try {
+            const extracted = JSON.parse(jsonMatch[0]);
+            clubName = extracted.clubName;
+          } catch {
+            clubName = textContent.replace(/["{}\n]/g, '').trim();
+          }
+        } else {
+          clubName = textContent.replace(/["{}\n]/g, '').trim();
+        }
+      }
+      
+      return clubName || `FC ${nationality.name}`;
+    } catch (error) {
+      console.error("Error generating club:", error);
+      // Fallback if API call fails
+      return `${nationality.name} United`;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handlePositionSelected = async (pos: PositionOption) => {
+    setPosition(pos);
+    
+    if (nationality) {
+      const club = await generateRandomClub();
+      setStartClub(club);
+    }
+    
+    handleNext();
+  };
+  
+  const handleNationalitySelected = async (nat: NationalityOption) => {
+    setNationality(nat);
+    handleNext();
+  };
+  
   const handleStartGame = async () => {
     const selectedNation = nationality || nationalities[0];
     const selectedPos = position || positions[0];
+    const club = startClub || selectedNation.name + " FC";
     
     // Create player profile
     const profile: PlayerProfile = {
@@ -50,7 +123,7 @@ const CreatePlayer = () => {
       age: age || 18,
       nationality: selectedNation.code,
       position: selectedPos.code,
-      startClub: selectedNation.startClub,
+      startClub: club,
       createdAt: new Date().toISOString()
     };
     
@@ -58,6 +131,7 @@ const CreatePlayer = () => {
     setPlayerProfile(profile);
     
     try {
+      setIsLoading(true);
       // Call API to start game
       const response = await gameService.startGame(profile);
       
@@ -69,6 +143,13 @@ const CreatePlayer = () => {
       startGame();
     } catch (error) {
       console.error("Failed to start game:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível iniciar o jogo. Tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -177,7 +258,7 @@ const CreatePlayer = () => {
                   key={nat.code}
                   className={`p-2 flex flex-col items-center justify-center border-2 
                             ${nationality?.code === nat.code ? 'border-magenta' : 'border-cyan'}`}
-                  onClick={() => setNationality(nat)}
+                  onClick={() => handleNationalitySelected(nat)}
                 >
                   <span className="text-2xl">{nat.flag}</span>
                   <span className="text-xs mt-1">{nat.name}</span>
@@ -187,7 +268,7 @@ const CreatePlayer = () => {
             
             {nationality && (
               <div className="text-xs w-full text-center mt-2">
-                <span className="cyan-text">{nationality.startClub}</span> - {nationality.league}
+                <span className="cyan-text">{nationality.name}</span> - {nationality.league}
               </div>
             )}
             
@@ -197,15 +278,6 @@ const CreatePlayer = () => {
                 onClick={handleBack}
               >
                 VOLTAR
-              </button>
-              
-              <button 
-                className="retro-button"
-                onClick={handleNext}
-                disabled={!nationality}
-                style={{ opacity: nationality ? 1 : 0.5 }}
-              >
-                PRÓXIMO
               </button>
             </div>
           </div>
@@ -221,7 +293,8 @@ const CreatePlayer = () => {
                 <button
                   key={pos.code}
                   className={`retro-button ${position?.code === pos.code ? '' : 'retro-button-secondary'} w-full`}
-                  onClick={() => setPosition(pos)}
+                  onClick={() => handlePositionSelected(pos)}
+                  disabled={isLoading}
                 >
                   {pos.code}
                 </button>
@@ -241,12 +314,44 @@ const CreatePlayer = () => {
               >
                 VOLTAR
               </button>
+            </div>
+          </div>
+        );
+      
+      case 5:
+        return (
+          <div className="flex flex-col items-center space-y-6">
+            <h2 className="text-lg font-pixel cyan-text">Seu Clube</h2>
+            
+            {isLoading ? (
+              <div className="text-center py-4">
+                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-cyan border-t-transparent"></div>
+                <p className="mt-2 text-sm">Procurando um clube...</p>
+              </div>
+            ) : (
+              <div className="border-2 border-cyan p-4 w-full">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-lg font-bold cyan-text">{startClub}</p>
+                    <p className="text-xs mt-2">{nationality?.league || 'Liga'}</p>
+                    <p className="text-xs mt-1">País: {nationality?.name || 'País'} {nationality?.flag}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="flex w-full justify-between mt-8">
+              <button 
+                className="retro-button retro-button-secondary"
+                onClick={handleBack}
+              >
+                VOLTAR
+              </button>
               
               <button 
                 className="retro-button"
                 onClick={handleNext}
-                disabled={!position}
-                style={{ opacity: position ? 1 : 0.5 }}
+                disabled={isLoading || !startClub}
               >
                 PRÓXIMO
               </button>
@@ -254,7 +359,7 @@ const CreatePlayer = () => {
           </div>
         );
       
-      case 5:
+      case 6:
         return (
           <div className="flex flex-col items-center space-y-6">
             <h2 className="text-lg font-pixel cyan-text">Confirmar Jogador</h2>
@@ -274,7 +379,7 @@ const CreatePlayer = () => {
               </div>
               
               <div className="mt-4 text-xs">
-                <p className="cyan-text">Clube: {nationality?.startClub || 'Clube'}</p>
+                <p className="cyan-text">Clube: {startClub || 'Clube'}</p>
                 <p>{nationality?.league || 'Liga'}</p>
               </div>
             </div>
@@ -290,8 +395,16 @@ const CreatePlayer = () => {
               <button 
                 className="retro-button"
                 onClick={handleStartGame}
+                disabled={isLoading}
               >
-                COMEÇAR CARREIRA
+                {isLoading ? (
+                  <span className="flex items-center">
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent mr-2"></span>
+                    CARREGANDO
+                  </span>
+                ) : (
+                  "COMEÇAR CARREIRA"
+                )}
               </button>
             </div>
           </div>
