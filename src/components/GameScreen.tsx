@@ -29,14 +29,23 @@ const GameScreen = () => {
     }
   }, [currentNarrative]);
   
-  // Helper function to colorize narrative text
+  // Helper function to colorize narrative text with improved styling for the new structure
   const formatNarrative = (text: string) => {
     if (!text) return '';
     
-    return text
-      .replace(/<cyan>(.*?)<\/cyan>/g, '<span class="cyan-text">$1</span>')
-      .replace(/<yellow>(.*?)<\/yellow>/g, '<span class="yellow-text">$1</span>')
-      .replace(/<magenta>(.*?)<\/magenta>/g, '<span class="magenta-text">$1</span>');
+    // Format colored text
+    let formattedText = text
+      .replace(/<cyan>(.*?)<\/cyan>/g, '<span class="text-cyan-400">$1</span>')
+      .replace(/<yellow>(.*?)<\/yellow>/g, '<span class="text-yellow-400">$1</span>')
+      .replace(/<magenta>(.*?)<\/magenta>/g, '<span class="text-pink-500 font-semibold">$1</span>');
+      
+    // Add spacing between paragraphs for better readability
+    formattedText = formattedText.replace(/\n\n/g, '<div class="my-2"></div>');
+    
+    // Make italic text actually italic
+    formattedText = formattedText.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    
+    return formattedText;
   };
   
   // Handle chat submission
@@ -61,8 +70,8 @@ const GameScreen = () => {
       // Get next narrative based on user input
       const response = await gameService.makeUserInput(playerProfile, [...choiceLog, newChoice], userInput);
       
-      // Update game state
-      setCurrentNarrative(prev => `${prev}\n\n<cyan>Você:</cyan> ${userInput}\n\n${response.narrative}`);
+      // Update game state - we don't need to add the user input here since it's already in the response
+      setCurrentNarrative(prev => `${prev}\n\n${response.narrative}`);
       
       // Clear input
       setUserInput('');
@@ -80,20 +89,20 @@ const GameScreen = () => {
   
   return (
     <div className="w-full max-w-md mx-auto px-4 py-6">
-      {/* Narrative Section - Now a chat log */}
+      {/* Narrative Section - Enhanced styling for better readability */}
       <div 
         ref={narrativeRef}
-        className="max-h-[300px] overflow-y-auto border-2 border-cyan p-4 mb-8 text-sm whitespace-pre-line"
+        className="max-h-[400px] overflow-y-auto border-2 border-cyan rounded-md p-4 mb-6 text-sm whitespace-pre-line bg-black/30 shadow-inner"
         dangerouslySetInnerHTML={{ __html: formatNarrative(currentNarrative) }}
       />
       
       {/* Chat input */}
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4 mb-8">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3 mb-6">
         <Textarea
           value={userInput}
           onChange={(e) => setUserInput(e.target.value)}
-          placeholder="Digite sua resposta..."
-          className="min-h-[80px] text-cyan bg-transparent border-cyan"
+          placeholder="O que você quer dizer ou fazer..."
+          className="min-h-[80px] text-cyan bg-transparent border-cyan resize-none"
           disabled={isLoading}
         />
         
@@ -110,13 +119,13 @@ const GameScreen = () => {
       
       {/* Loading indicator */}
       {isLoading && (
-        <div className="flex justify-center items-center my-6">
+        <div className="flex justify-center items-center my-4">
           <div className="h-8 w-8 border-4 border-cyan rounded-full border-t-transparent animate-spin"></div>
         </div>
       )}
       
       {/* Navigation buttons */}
-      <div className="flex justify-between mt-8">
+      <div className="flex justify-between mt-6">
         <Button 
           className="retro-button retro-button-secondary flex items-center"
           onClick={() => setActiveScreen('history')}
