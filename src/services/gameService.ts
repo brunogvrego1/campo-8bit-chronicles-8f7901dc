@@ -30,9 +30,9 @@ export const gameService = {
     // Get the last chosen option
     const lastChoiceEvent = choiceLog.length > 0 ? choiceLog[choiceLog.length - 1].event : "";
     
-    // Prepare a default outcome message
-    let outcome = {
-      type: choice === "A" ? "POSITIVO" : Math.random() > 0.5 ? "POSITIVO" : "NEUTRO", 
+    // Prepare a default outcome message with a properly typed outcome
+    const outcome = {
+      type: choice === "A" ? "POSITIVO" as const : (Math.random() > 0.5 ? "POSITIVO" as const : "NEUTRO" as const), 
       message: choice === "A" ? "Decisão bem recebida pela equipe" : "Resultado com efeito limitado"
     };
     
