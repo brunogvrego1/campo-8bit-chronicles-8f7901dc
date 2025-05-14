@@ -1,5 +1,5 @@
 
-import { PlayerProfile, Choice, GameResponse, TimelineEvent } from '@/lib/types';
+import { PlayerProfile, Choice, GameResponse, TimelineEvent, PlayerStats } from '@/lib/types';
 import OpenAI from 'openai';
 import { supabase } from "@/integrations/supabase/client";
 import { getDeepSeekChatCompletion } from './deepseekService';
@@ -105,9 +105,14 @@ const formatPlayerAttributes = (attributes: PlayerProfile['attributes']): string
   return `Atributos: Vel ${attributes.speed}  Fís ${attributes.physical}  Chu ${attributes.shooting}  Cab ${attributes.heading}  Car ${attributes.charisma}  Pas ${attributes.passing}  Def ${attributes.defense}`;
 };
 
+// Format career stats for the prompt
+const formatCareerStats = (stats: PlayerStats): string => {
+  return `Histórico: ${stats.age} anos • ${stats.matches} jogos • ${stats.goals} gols • ${stats.assists} assistências • ${stats.keyDefenses} defesas-chave • ${stats.followers.toLocaleString()} seguidores`;
+};
+
 // Extract match performance stats from narrative
-const extractMatchStats = (narrative: string, outcome?: { type: string }): { goals: number, assists: number, rating: number } => {
-  const stats = { goals: 0, assists: 0, rating: 0 };
+const extractMatchStats = (narrative: string, outcome?: { type: string }): { goals: number, assists: number, rating: number, keyDefenses: number } => {
+  const stats = { goals: 0, assists: 0, rating: 0, keyDefenses: 0 };
   
   // Determine base rating from outcome type
   if (outcome) {
@@ -128,6 +133,15 @@ const extractMatchStats = (narrative: string, outcome?: { type: string }): { goa
   if (narrative.toLowerCase().includes("assist") || 
       narrative.toLowerCase().includes("passe decisivo")) {
     stats.assists = 1;
+    stats.rating = Math.max(stats.rating, 1.2);
+  }
+  
+  // Check for key defensive actions
+  if (narrative.toLowerCase().includes("defesa crucial") || 
+      narrative.toLowerCase().includes("intercepta") ||
+      narrative.toLowerCase().includes("bloqueia o chute") ||
+      narrative.toLowerCase().includes("desarma")) {
+    stats.keyDefenses = 1;
     stats.rating = Math.max(stats.rating, 1.2);
   }
   
@@ -226,7 +240,12 @@ Mantenha a narrativa envolvente e fluida, em um tom dramático e imersivo.`
     }
   },
   
-  makeChoice: async (playerProfile: PlayerProfile, choiceLog: Choice[], choice: string): Promise<GameResponse> => {
+  makeChoice: async (
+    playerProfile: PlayerProfile, 
+    choiceLog: Choice[], 
+    choice: string,
+    careerStats?: PlayerStats
+  ): Promise<GameResponse> => {
     console.log("Making choice:", choice);
     
     try {
@@ -286,6 +305,51 @@ e ofereça 2 opções de como o jogador pode reagir após o jogo.`;
       // Format the timeline for the prompt
       const timelinePrompt = formatTimelineForPrompt(timeline, choiceLog);
       
+      // Add career stats context to the prompt
+      const statsContext = careerStats ? 
+        `\n${formatCareerStats(careerStats)}` : '';
+      
+      // Create a relevant context based on career stats
+      let careerContext = "";
+      if (careerStats && careerStats.goals + careerStats.assists + careerStats.matches > 5) {
+        // Create narrative hooks based on career stats
+        const achievements = [];
+        
+        if (careerStats.goals > 10) {
+          achievements.push(`artilheiro com ${careerStats.goals} gols`);
+        } else if (careerStats.goals > 5) {
+          achievements.push(`marcou ${careerStats.goals} gols na carreira`);
+        }
+        
+        if (careerStats.assists > 10) {
+          achievements.push(`distribuiu ${careerStats.assists} assistências para seus companheiros`);
+        } else if (careerStats.assists > 5) {
+          achievements.push(`contribuiu com ${careerStats.assists} assistências`);
+        }
+        
+        if (careerStats.keyDefenses > 10) {
+          achievements.push(`realizou ${careerStats.keyDefenses} defesas cruciais`);
+        } else if (careerStats.keyDefenses > 5) {
+          achievements.push(`fez ${careerStats.keyDefenses} intervenções defensivas importantes`);
+        }
+        
+        if (careerStats.followers > 10000) {
+          achievements.push(`tem uma base fiel de ${(careerStats.followers/1000).toFixed(1)}K seguidores`);
+        } else if (careerStats.followers > 1000) {
+          achievements.push(`conquistou ${(careerStats.followers/1000).toFixed(1)}K seguidores`);
+        }
+        
+        if (careerStats.matches > 50) {
+          achievements.push(`já disputou ${careerStats.matches} partidas profissionais`);
+        } else if (careerStats.matches > 20) {
+          achievements.push(`acumula experiência de ${careerStats.matches} jogos`);
+        }
+        
+        if (achievements.length > 0) {
+          careerContext = `\nContexto de Carreira: ${achievements.join('; ')}.`;
+        }
+      }
+      
       // Use DeepSeek to generate the next part of the narrative
       const data = await getDeepSeekChatCompletion([
         {
@@ -307,7 +371,8 @@ e ofereça 2 opções de como o jogador pode reagir após o jogo.`;
                    TIPO_RESULTADO deve ser um dos: "POSITIVO", "NEGATIVO", "NEUTRO", "DECISIVO", ou "ESTRATÉGICO".
                    Faça o resultado apropriado para a escolha feita.
                    Nunca repita opções já oferecidas anteriormente. Sempre ofereça escolhas novas e criativas.
-                   Mantenha a narrativa envolvente e fluida, em um tom dramático e imersivo.`
+                   Mantenha a narrativa envolvente e fluida, em um tom dramático e imersivo.
+                   Quando relevante, integre referências sutis às estatísticas de carreira do jogador.`
         },
         {
           role: "user", 
@@ -316,7 +381,7 @@ e ofereça 2 opções de como o jogador pode reagir após o jogo.`;
 ${timelinePrompt}
 Perfil
 Nome: ${playerProfile.name} • ${playerProfile.age} anos • ${getNationalityAdjective(playerProfile.nationality)} • ${playerProfile.position} • ${playerProfile.startClub}
-${formatPlayerAttributes(playerProfile.attributes)}
+${formatPlayerAttributes(playerProfile.attributes)}${statsContext}${careerContext}
 ###
 Histórico de escolhas anteriores:
 ${choiceLog.map((log, idx) => {
@@ -354,7 +419,7 @@ Devolva JSON { "narrative": "...", "options": { "A": "...", "B": "..." }, "outco
             message: "O treino continua normalmente"
           },
           timeline: timeline,
-          matchStats: { rating: 0.5 }
+          matchStats: { rating: 0.5, keyDefenses: 0 }
         };
       }
       
@@ -392,7 +457,7 @@ Devolva JSON { "narrative": "...", "options": { "A": "...", "B": "..." }, "outco
       // Extract match stats from narrative and outcome
       const matchStats = currentSlot >= 3 ? 
         extractMatchStats(formattedNarrative, parsedResponse.outcome) : 
-        { goals: 0, assists: 0, rating: 0 };
+        { goals: 0, assists: 0, rating: 0, keyDefenses: 0 };
       
       return {
         narrative: formattedNarrative,
@@ -423,7 +488,7 @@ Devolva JSON { "narrative": "...", "options": { "A": "...", "B": "..." }, "outco
           message: "Treinamento em andamento"
         },
         timeline: generateDayTimeline(),
-        matchStats: { rating: 0.5 }
+        matchStats: { rating: 0.5, keyDefenses: 0 }
       };
     }
   }

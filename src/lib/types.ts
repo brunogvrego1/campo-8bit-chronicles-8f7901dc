@@ -25,6 +25,15 @@ export interface TimelineEvent {
   result: string | null;
 }
 
+export interface PlayerStats {
+  matches: number;
+  goals: number;
+  assists: number;
+  keyDefenses: number;
+  age: number;
+  followers: number;
+}
+
 export interface Choice {
   id: number;
   event: string;
@@ -51,6 +60,7 @@ export interface Choice {
     goals?: number;
     assists?: number;
     rating?: number; // 0-2 scale as per narrativeRating
+    keyDefenses?: number;
   };
 }
 
@@ -76,6 +86,7 @@ export interface GameState {
     averageRating: number;
     totalRating: number;
   };
+  careerStats: PlayerStats;
 }
 
 export interface NationalityOption {
@@ -108,5 +119,6 @@ export interface GameResponse {
     goals?: number;
     assists?: number;
     rating?: number;
+    keyDefenses?: number;
   };
 }

@@ -2,7 +2,7 @@
 import { useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { gameService } from '@/services/gameService';
-import { ArrowRight, History } from 'lucide-react';
+import { ArrowRight, History, User, Calendar, Flag, Trophy, Football, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PlayerProfile } from '@/lib/types';
 
@@ -21,7 +21,9 @@ const GameScreen = () => {
     xpPool,
     attributeFocus,
     addXp,
-    setAttributeFocus
+    setAttributeFocus,
+    careerStats,
+    updateCareerStats
   } = useGameStore();
   
   const { toast } = useToast();
@@ -74,7 +76,7 @@ const GameScreen = () => {
       'força': 'physical',
       'força física': 'physical',
       'muscular': 'physical',
-      'cabeça': 'heading',
+      'cabeça': 'cabeceio',
       'cabeceio': 'heading',
       'cabeçada': 'heading',
       'cabecear': 'heading',
@@ -120,7 +122,7 @@ const GameScreen = () => {
       setAttributeFocus(focus);
       
       // Get next narrative based on choice
-      const response = await gameService.makeChoice(playerProfile, [...choiceLog], choice);
+      const response = await gameService.makeChoice(playerProfile, [...choiceLog], choice, careerStats);
       
       // Calculate XP gain based on choice and slot
       let xpGain = 0;
@@ -135,6 +137,20 @@ const GameScreen = () => {
         // Live gives +1 XP, Press conference gives 0
         const isLive = response.timeline?.[1]?.type === "LIVE_REDES";
         xpGain = isLive ? 1 : 0;
+        
+        // Update followers based on charisma and random factor for social media events
+        if (isLive) {
+          const charismaBoost = playerProfile.attributes.charisma * 10;
+          const randomFactor = Math.floor(Math.random() * 50); // Random 0-50
+          updateCareerStats({ followers: charismaBoost + randomFactor });
+          
+          // Notify the user
+          toast({
+            title: "Redes Sociais",
+            description: `+${charismaBoost + randomFactor} seguidores`,
+            duration: 3000
+          });
+        }
       }
       // Slot 3-4: Match day events
       else {
@@ -149,6 +165,16 @@ const GameScreen = () => {
         if (response.matchStats?.assists && response.matchStats.assists > 0) {
           xpGain += 3 * response.matchStats.assists;
         }
+        
+        // Update career stats for match performance
+        const statsUpdate = {
+          matches: currentSlot === 3 ? 1 : 0, // Only count once per match (on first match action)
+          goals: response.matchStats?.goals || 0,
+          assists: response.matchStats?.assists || 0,
+          keyDefenses: response.matchStats?.keyDefenses || 0
+        };
+        
+        updateCareerStats(statsUpdate);
       }
       
       // Add XP to the pool
@@ -311,8 +337,43 @@ const GameScreen = () => {
     );
   };
   
+  // Render career stats
+  const renderCareerStats = () => {
+    return (
+      <div className="mt-4 mb-2 flex flex-wrap items-center text-xs text-gray-300 gap-2 justify-between">
+        <div className="flex items-center">
+          <Calendar className="w-3 h-3 mr-1" />
+          <span>{careerStats.age} anos</span>
+        </div>
+        <div className="flex items-center">
+          <Football className="w-3 h-3 mr-1" />
+          <span>{careerStats.goals} gols</span>
+        </div>
+        <div className="flex items-center">
+          <Trophy className="w-3 h-3 mr-1" />
+          <span>{careerStats.assists} assists</span>
+        </div>
+        <div className="flex items-center">
+          <Shield className="w-3 h-3 mr-1" />
+          <span>{careerStats.keyDefenses} def</span>
+        </div>
+        <div className="flex items-center">
+          <Flag className="w-3 h-3 mr-1" />
+          <span>{careerStats.matches} jogos</span>
+        </div>
+        <div className="flex items-center">
+          <User className="w-3 h-3 mr-1" />
+          <span>{careerStats.followers.toLocaleString()} seg</span>
+        </div>
+      </div>
+    );
+  };
+  
   return (
     <div className="w-full max-w-md mx-auto px-4 py-6">
+      {/* Career Stats */}
+      {playerProfile && renderCareerStats()}
+      
       {/* XP Progress Bar */}
       {playerProfile && renderXpProgressBar()}
       

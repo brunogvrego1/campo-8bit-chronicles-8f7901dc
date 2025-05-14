@@ -21,6 +21,14 @@ const initialState: GameState = {
     appearances: 0,
     averageRating: 0,
     totalRating: 0,
+  },
+  careerStats: {
+    matches: 0,
+    goals: 0,
+    assists: 0,
+    keyDefenses: 0,
+    age: 18,
+    followers: 100 // Starting with some initial followers
   }
 };
 
@@ -40,13 +48,25 @@ export const useGameStore = create<GameState & {
   updateAttribute: (attribute: keyof PlayerProfile['attributes'], newValue: number) => void;
   addToSeasonStats: (stats: { goals?: number, assists?: number, rating?: number }) => void;
   resetSeasonStats: () => void;
+  updateCareerStats: (stats: { 
+    matches?: number, 
+    goals?: number, 
+    assists?: number, 
+    keyDefenses?: number, 
+    followers?: number 
+  }) => void;
+  incrementAge: () => void;
 }>()(
   persist(
     (set, get) => ({
       ...initialState,
       
       setPlayerProfile: (profile) => set(() => ({ 
-        playerProfile: profile 
+        playerProfile: profile,
+        careerStats: {
+          ...initialState.careerStats,
+          age: profile.age
+        }
       })),
       
       addChoice: (choice) => set((state) => ({ 
@@ -184,6 +204,28 @@ export const useGameStore = create<GameState & {
           averageRating: 0,
           totalRating: 0
         }
+      }),
+      
+      updateCareerStats: (stats) => set(state => {
+        return {
+          careerStats: {
+            ...state.careerStats,
+            matches: state.careerStats.matches + (stats.matches || 0),
+            goals: state.careerStats.goals + (stats.goals || 0),
+            assists: state.careerStats.assists + (stats.assists || 0),
+            keyDefenses: state.careerStats.keyDefenses + (stats.keyDefenses || 0),
+            followers: state.careerStats.followers + (stats.followers || 0)
+          }
+        };
+      }),
+      
+      incrementAge: () => set(state => {
+        return {
+          careerStats: {
+            ...state.careerStats,
+            age: state.careerStats.age + 1
+          }
+        };
       })
     }),
     {

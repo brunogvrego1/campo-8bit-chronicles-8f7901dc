@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
-import { ArrowLeft, Copy, Trash2 } from 'lucide-react';
+import { ArrowLeft, Copy, Trash2, User, Calendar, Flag, Trophy, Football, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Choice } from '@/lib/types'; // Added import for Choice type
 import { 
@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 const HistoryView = () => {
-  const { playerProfile, choiceLog, setActiveScreen, resetGame } = useGameStore();
+  const { playerProfile, choiceLog, setActiveScreen, resetGame, careerStats } = useGameStore();
   const { toast } = useToast();
   const [page, setPage] = useState(0);
   const [expandedChoice, setExpandedChoice] = useState<number | null>(null);
@@ -111,6 +111,65 @@ const HistoryView = () => {
     setIsResetDialogOpen(false);
   };
   
+  // Render career metrics
+  const renderCareerMetrics = () => {
+    return (
+      <div className="border-2 border-gray-700 p-4 mb-6 mt-4">
+        <h3 className="font-pixel text-sm cyan-text mb-3">Estatísticas de Carreira</h3>
+        
+        <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm">
+          <div className="flex items-center">
+            <Calendar className="w-4 h-4 mr-2 text-gray-400" />
+            <div>
+              <p className="text-gray-400">Idade</p>
+              <p>{careerStats.age} anos</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center">
+            <Flag className="w-4 h-4 mr-2 text-gray-400" />
+            <div>
+              <p className="text-gray-400">Partidas</p>
+              <p>{careerStats.matches}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center">
+            <Football className="w-4 h-4 mr-2 text-gray-400" />
+            <div>
+              <p className="text-gray-400">Gols</p>
+              <p>{careerStats.goals}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center">
+            <Trophy className="w-4 h-4 mr-2 text-gray-400" />
+            <div>
+              <p className="text-gray-400">Assistências</p>
+              <p>{careerStats.assists}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center">
+            <Shield className="w-4 h-4 mr-2 text-gray-400" />
+            <div>
+              <p className="text-gray-400">Def. Chave</p>
+              <p>{careerStats.keyDefenses}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center">
+            <User className="w-4 h-4 mr-2 text-gray-400" />
+            <div>
+              <p className="text-gray-400">Seguidores</p>
+              <p>{careerStats.followers.toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+  
   return (
     <div className="w-full max-w-md mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-6">
@@ -130,6 +189,9 @@ const HistoryView = () => {
           <p className="text-xs">{playerProfile.startClub}</p>
         </div>
       )}
+      
+      {/* Career Metrics */}
+      {careerStats && renderCareerMetrics()}
       
       <div className="space-y-4 mb-6">
         {currentChoices.map((choice, index) => (
@@ -173,6 +235,23 @@ const HistoryView = () => {
                   <div>
                     <h4 className="text-xs text-gray-400 mb-1">Efeito:</h4>
                     <div className="text-xs">{choice.outcome.message}</div>
+                  </div>
+                )}
+                
+                {choice.matchStats && (Object.values(choice.matchStats).some(val => val > 0)) && (
+                  <div className="mt-2">
+                    <h4 className="text-xs text-gray-400 mb-1">Estatísticas:</h4>
+                    <div className="text-xs flex space-x-3">
+                      {choice.matchStats.goals ? (
+                        <span>Gols: {choice.matchStats.goals}</span>
+                      ) : null}
+                      {choice.matchStats.assists ? (
+                        <span>Assists: {choice.matchStats.assists}</span>
+                      ) : null}
+                      {choice.matchStats.keyDefenses ? (
+                        <span>Defesas: {choice.matchStats.keyDefenses}</span>
+                      ) : null}
+                    </div>
                   </div>
                 )}
               </div>
