@@ -1,8 +1,7 @@
-
 import { useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { gameService } from '@/services/gameService';
-import { ArrowRight, History, User, Calendar, Flag, Trophy, Football, Shield } from 'lucide-react';
+import { ArrowRight, History, User, Calendar, Flag, Trophy, Award, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PlayerProfile } from '@/lib/types';
 
@@ -237,42 +236,6 @@ const GameScreen = () => {
     }
   };
   
-  // Display timeline information
-  const renderTimeline = () => {
-    if (choiceLog.length === 0 || !choiceLog[choiceLog.length - 1].timeline) {
-      return null;
-    }
-    
-    const timeline = choiceLog[choiceLog.length - 1].timeline;
-    if (!timeline) return null;
-    
-    return (
-      <div className="mt-4 p-2 border border-gray-600 rounded text-xs text-gray-300">
-        <h4 className="font-bold mb-1">Cronologia do Dia:</h4>
-        {timeline.map((event, index) => {
-          let statusIcon = "⦿"; // pending
-          if (event.result) {
-            statusIcon = event.result === "POSITIVO" ? "✓" : 
-                         event.result === "NEGATIVO" ? "✗" : "•";
-          }
-          
-          const periodName = 
-            event.slot === 1 ? "Manhã" :
-            event.slot === 2 ? "Tarde" :
-            event.slot === 3 ? "Pré-jogo" :
-            "Partida";
-          
-          return (
-            <div key={index} className="flex items-center space-x-1">
-              <span>{statusIcon}</span>
-              <span>{periodName} – {event.type}{event.subType ? ` (${event.subType})` : ''}</span>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-  
   // Function to convert attribute keys to display names
   const getAttributeDisplayName = (attr: keyof PlayerProfile['attributes']): string => {
     const displayNames: Record<keyof PlayerProfile['attributes'], string> = {
@@ -387,7 +350,6 @@ const GameScreen = () => {
       {renderAttributeImprovements()}
       
       {/* Timeline information */}
-      {renderTimeline()}
       
       {/* Choice Options */}
       {nextOptions && !isLoading && (
