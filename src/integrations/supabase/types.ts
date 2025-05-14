@@ -9,6 +9,36 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      event_templates: {
+        Row: {
+          created_at: string
+          event_subtype: string | null
+          event_type: string
+          id: string
+          prompt_template: string
+          system_prompt: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_subtype?: string | null
+          event_type: string
+          id?: string
+          prompt_template: string
+          system_prompt: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_subtype?: string | null
+          event_type?: string
+          id?: string
+          prompt_template?: string
+          system_prompt?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       teams: {
         Row: {
           country_code: string

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { gameService } from '@/services/gameService';
@@ -182,7 +181,9 @@ const GameScreen = () => {
     return text
       .replace(/<cyan>(.*?)<\/cyan>/g, '<span class="cyan-text">$1</span>')
       .replace(/<yellow>(.*?)<\/yellow>/g, '<span class="yellow-text">$1</span>')
-      .replace(/<magenta>(.*?)<\/magenta>/g, '<span class="magenta-text">$1</span>');
+      .replace(/<magenta>(.*?)<\/magenta>/g, '<span class="magenta-text">$1</span>')
+      .replace(/\\n/g, '<br/>') // Converter quebras de linha escapadas
+      .replace(/\n/g, '<br/>'); // Converter quebras de linha normais
   };
   
   // Get attribute description based on value

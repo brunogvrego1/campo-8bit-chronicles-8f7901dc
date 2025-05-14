@@ -1,5 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { PlayerProfile, GameResponse, Choice, TimelineEvent } from "@/lib/types";
+import { NarrativeService, NarrativeContext } from "@/services/narrativeService";
+import { eventTemplateService } from "@/services/eventTemplateService";
 
 // Variable to track if OpenAI has been initialized
 let _isOpenAIInitialized = false;
@@ -141,42 +143,72 @@ const isCelebrity = (followers: number): boolean => {
   return followers >= CELEBRITY_THRESHOLD;
 };
 
-const generateTrainingEvent = (
+// Função para inicializar os serviços necessários
+const initServices = async () => {
+  // Pré-carrega os templates de eventos para usar durante o jogo
+  await eventTemplateService.loadTemplates();
+};
+
+// Função para gerar uma narrativa para um evento de treino
+const generateTrainingEvent = async (
   playerProfile: PlayerProfile,
   choice: 'A' | 'B',
   currentTimeline: TimelineEvent[]
-): GameResponse => {
+): Promise<GameResponse> => {
   const { attributes } = playerProfile;
   const attributeKeys = Object.keys(attributes) as (keyof PlayerProfile['attributes'])[];
   const randomAttribute = attributeKeys[Math.floor(Math.random() * attributeKeys.length)];
 
-  let narrative = '';
   let outcomeMessage = '';
   let xpGain = 0;
   let attributeFocus: keyof PlayerProfile['attributes'] | null = null;
   let attributeImproved = undefined;
   let timelineEvents: TimelineEvent[] = [];
+  let outcomeType: 'POSITIVO' | 'NEGATIVO' | 'NEUTRO' | 'DECISIVO' | 'ESTRATÉGICO' = 'NEUTRO';
 
   if (choice === 'A') {
-    narrative = `Você focou em aprimorar seu ${randomAttribute} durante o treino.`;
     xpGain = 10;
     attributeFocus = randomAttribute;
     outcomeMessage = `Sua dedicação em ${randomAttribute} pode trazer resultados em breve.`;
     timelineEvents = [{ slot: 1, type: 'TRAINING', choice: 'A', result: `Treinou ${randomAttribute}` }];
+    outcomeType = 'POSITIVO';
   } else {
-    narrative = "Você optou por um treino mais leve, focando na diversão e evitando o estresse.";
     xpGain = 5;
     outcomeMessage = "Um treino mais leve pode ser bom para evitar lesões, mas o progresso é mais lento.";
     timelineEvents = [{ slot: 1, type: 'TRAINING', choice: 'B', result: 'Treino leve' }];
+    outcomeType = 'NEUTRO';
+  }
+  
+  // Gerar narrativa usando IA com o sistema de templates
+  const narrativeContext: NarrativeContext = {
+    playerProfile,
+    eventType: 'MACRO',
+    eventSubtype: Math.random() > 0.5 ? 'TREINO_TECNICO' : 'TREINO_FISICO',
+    week: 1, // Semana do jogo, ajustar conforme necessário
+    choice
+  };
+  
+  const narrativeResponse = await NarrativeService.generateNarrative(narrativeContext);
+  
+  // Usar as opções geradas pela IA, se disponíveis
+  const nextEventOptions = {
+    labelA: "Continuar Treinando",
+    labelB: "Descansar"
+  };
+  
+  if (narrativeResponse.options && narrativeResponse.options.length >= 2) {
+    // Remove os prefixos ① e ② se presentes
+    nextEventOptions.labelA = narrativeResponse.options[0].replace(/^① /, '');
+    nextEventOptions.labelB = narrativeResponse.options[1].replace(/^② /, '');
   }
 
   return buildGameResponse(
-    narrative,
-    "Continuar Treinando",
-    "Descansar",
+    narrativeResponse.narrative,
+    nextEventOptions.labelA,
+    nextEventOptions.labelB,
     timelineEvents,
     currentTimeline,
-    'NEUTRO',
+    outcomeType,
     outcomeMessage,
     undefined,
     xpGain,
@@ -185,24 +217,25 @@ const generateTrainingEvent = (
   );
 };
 
-const generateMatchEvent = (
+// Função para gerar uma narrativa para um evento de partida
+const generateMatchEvent = async (
   playerProfile: PlayerProfile,
   choice: 'A' | 'B',
   currentTimeline: TimelineEvent[]
-): GameResponse => {
+): Promise<GameResponse> => {
   const { position } = playerProfile;
   const isGoalKeeper = position === 'GOL';
 
-  let narrative = '';
   let outcomeMessage = '';
   let goals = 0;
   let assists = 0;
   let keyDefenses = 0;
   let rating = 0;
   let timelineEvents: TimelineEvent[] = [];
+  let outcomeType: 'POSITIVO' | 'NEGATIVO' | 'NEUTRO' | 'DECISIVO' | 'ESTRATÉGICO' = 'NEUTRO';
 
+  // Determina o resultado da partida com base na escolha
   if (choice === 'A') {
-    narrative = "Você se dedicou ao máximo durante a partida, buscando o melhor desempenho.";
     const success = Math.random() > 0.3;
 
     if (success) {
@@ -213,12 +246,15 @@ const generateMatchEvent = (
 
       outcomeMessage = "Sua dedicação resultou em um ótimo desempenho na partida!";
       timelineEvents = [{ slot: 1, type: 'MATCH', choice: 'A', result: 'Vitória' }];
+      outcomeType = 'POSITIVO';
     } else {
+      keyDefenses = isGoalKeeper ? Math.floor(Math.random() * 2) : 0;
+      rating = calculateRating(0, 0, keyDefenses, position);
       outcomeMessage = "Apesar do esforço, a partida não foi como esperado.";
       timelineEvents = [{ slot: 1, type: 'MATCH', choice: 'A', result: 'Derrota' }];
+      outcomeType = 'NEGATIVO';
     }
   } else {
-    narrative = "Você jogou de forma mais conservadora, priorizando a segurança e evitando riscos.";
     const success = Math.random() > 0.5;
 
     if (success) {
@@ -229,19 +265,54 @@ const generateMatchEvent = (
 
       outcomeMessage = "Sua abordagem conservadora garantiu um desempenho seguro e eficiente.";
       timelineEvents = [{ slot: 1, type: 'MATCH', choice: 'B', result: 'Empate' }];
+      outcomeType = 'NEUTRO';
     } else {
+      keyDefenses = isGoalKeeper ? 1 : 0;
+      rating = calculateRating(0, 0, keyDefenses, position);
       outcomeMessage = "A falta de ousadia pode ter limitado o impacto na partida.";
       timelineEvents = [{ slot: 1, type: 'MATCH', choice: 'B', result: 'Derrota' }];
+      outcomeType = 'NEGATIVO';
     }
+  }
+  
+  // Decide se será um lance específico de jogo ou uma narrativa de partida completa
+  const isSpecificPlay = Math.random() > 0.5;
+  
+  // Gerar narrativa usando IA
+  const narrativeContext: NarrativeContext = {
+    playerProfile,
+    eventType: isSpecificPlay ? 'MICRO_PRE' : 'MACRO',
+    eventSubtype: isSpecificPlay ? 
+      (Math.random() > 0.5 ? 'ATAQUE_FRANCO' : 'CONTRA_ATAQUE') : 
+      (Math.random() > 0.5 ? 'TALK_LOCKERROOM' : 'ESCOLHA_TATICA'),
+    minute: Math.floor(Math.random() * 90) + 1,
+    score: "0-0", // Placar, ajustar conforme necessário
+    rel: "0", // Relevância, ajustar conforme necessário
+    lanceType: isSpecificPlay ? (Math.random() > 0.5 ? 'ATAQUE_FRANCO' : 'CONTRA_ATAQUE') : undefined,
+    choice
+  };
+  
+  const narrativeResponse = await NarrativeService.generateNarrative(narrativeContext);
+  
+  // Usar as opções geradas pela IA, se disponíveis
+  const nextEventOptions = {
+    labelA: "Próxima Partida",
+    labelB: "Descansar"
+  };
+  
+  if (narrativeResponse.options && narrativeResponse.options.length >= 2) {
+    // Remove os prefixos ① e ② se presentes
+    nextEventOptions.labelA = narrativeResponse.options[0].replace(/^① /, '');
+    nextEventOptions.labelB = narrativeResponse.options[1].replace(/^② /, '');
   }
 
   return buildGameResponse(
-    narrative,
-    "Próxima Partida",
-    "Descansar",
+    narrativeResponse.narrative,
+    nextEventOptions.labelA,
+    nextEventOptions.labelB,
     timelineEvents,
     currentTimeline,
-    'NEUTRO',
+    outcomeType,
     outcomeMessage,
     { goals, assists, rating, keyDefenses },
     5,
@@ -250,45 +321,70 @@ const generateMatchEvent = (
   );
 };
 
-const generateMediaEvent = (
+// Função para gerar uma narrativa para um evento de mídia
+const generateMediaEvent = async (
   playerProfile: PlayerProfile,
   choice: 'A' | 'B',
   currentTimeline: TimelineEvent[]
-): GameResponse => {
+): Promise<GameResponse> => {
   const followers = playerProfile?.careerStats?.followers || 0;
   const isWellKnown = isCelebrity(followers);
 
-  let narrative = '';
   let outcomeMessage = '';
   let followerChange = 0;
   let timelineEvents: TimelineEvent[] = [];
+  let outcomeType: 'POSITIVO' | 'NEGATIVO' | 'NEUTRO' | 'DECISIVO' | 'ESTRATÉGICO' = 'NEUTRO';
 
   if (choice === 'A') {
-    narrative = "Você decidiu dar uma entrevista, buscando aumentar sua visibilidade.";
     const success = Math.random() > (isWellKnown ? 0.2 : 0.5);
 
     if (success) {
       followerChange = Math.floor(Math.random() * 500);
       outcomeMessage = "A entrevista foi um sucesso e atraiu novos fãs!";
       timelineEvents = [{ slot: 1, type: 'MEDIA', choice: 'A', result: 'Sucesso' }];
+      outcomeType = 'POSITIVO';
     } else {
       followerChange = -Math.floor(Math.random() * 300);
       outcomeMessage = "A entrevista não teve o impacto esperado e gerou algumas críticas.";
       timelineEvents = [{ slot: 1, type: 'MEDIA', choice: 'A', result: 'Fracasso' }];
+      outcomeType = 'NEGATIVO';
     }
   } else {
-    narrative = "Você preferiu evitar a mídia, focando na privacidade e desempenho no campo.";
     outcomeMessage = "Manter a discrição pode ser bom para evitar distrações, mas limita o crescimento de sua imagem.";
     timelineEvents = [{ slot: 1, type: 'MEDIA', choice: 'B', result: 'Evitou' }];
+    outcomeType = 'NEUTRO';
+  }
+  
+  // Gerar narrativa usando IA
+  const narrativeContext: NarrativeContext = {
+    playerProfile,
+    eventType: 'MACRO',
+    eventSubtype: Math.random() > 0.5 ? 'COLETIVA_IMPRENSA' : 'LIVE_REDES',
+    week: 1, // Semana do jogo, ajustar conforme necessário
+    choice
+  };
+  
+  const narrativeResponse = await NarrativeService.generateNarrative(narrativeContext);
+  
+  // Usar as opções geradas pela IA, se disponíveis
+  const nextEventOptions = {
+    labelA: "Próxima Entrevista",
+    labelB: "Focar nos Treinos"
+  };
+  
+  if (narrativeResponse.options && narrativeResponse.options.length >= 2) {
+    // Remove os prefixos ① e ② se presentes
+    nextEventOptions.labelA = narrativeResponse.options[0].replace(/^① /, '');
+    nextEventOptions.labelB = narrativeResponse.options[1].replace(/^② /, '');
   }
 
   return buildGameResponse(
-    narrative,
-    "Próxima Entrevista",
-    "Focar nos Treinos",
+    narrativeResponse.narrative,
+    nextEventOptions.labelA,
+    nextEventOptions.labelB,
     timelineEvents,
     currentTimeline,
-    'NEUTRO',
+    outcomeType,
     outcomeMessage,
     undefined,
     5,
@@ -297,11 +393,12 @@ const generateMediaEvent = (
   );
 };
 
-const generateSponsorEvent = (
+// Função para gerar uma narrativa para um evento de patrocínio
+const generateSponsorEvent = async (
   playerProfile: PlayerProfile,
   choice: 'A' | 'B',
   currentTimeline: TimelineEvent[]
-): GameResponse => {
+): Promise<GameResponse> => {
   const followers = playerProfile?.careerStats?.followers || 0;
   const isFamous = isCelebrity(followers);
 
@@ -344,11 +441,12 @@ const generateSponsorEvent = (
   );
 };
 
-const generatePostMatchEvent = (
+// Função para gerar uma narrativa para um evento de post-match
+const generatePostMatchEvent = async (
   playerProfile: PlayerProfile,
   choice: 'A' | 'B',
   currentTimeline: TimelineEvent[]
-): GameResponse => {
+): Promise<GameResponse> => {
   let narrative = '';
   let outcomeMessage = '';
   let xpGain = 8;
@@ -389,20 +487,55 @@ const generatePostMatchEvent = (
   );
 };
 
-const generateRandomEvent = (
+// Função para gerar um evento aleatório
+const generateRandomEvent = async (
   playerProfile: PlayerProfile,
   choice: 'A' | 'B',
   currentTimeline: TimelineEvent[]
-): GameResponse => {
+): Promise<GameResponse> => {
+  // Decide qual tipo de evento gerar
   const eventType = Math.random();
 
-  if (eventType < 0.25) {
+  // Ocasionalmente, gerar um evento raro
+  if (eventType < 0.05) {
+    // Exemplo de evento raro: lesão
+    const narrativeContext: NarrativeContext = {
+      playerProfile,
+      eventType: 'EVENT',
+      eventSubtype: 'LESAO_GRAVE',
+      minute: Math.floor(Math.random() * 90) + 1,
+      weeksOut: Math.floor(Math.random() * 12) + 4
+    };
+    
+    const narrativeResponse = await NarrativeService.generateNarrative(narrativeContext);
+    
+    // Criar um evento de lesão
+    const timelineEvents = [{ slot: 1, type: 'INJURY', choice: null, result: 'Lesão' }];
+    
+    return buildGameResponse(
+      narrativeResponse.narrative,
+      "Iniciar Tratamento",
+      "Consultar Médicos",
+      timelineEvents,
+      currentTimeline,
+      'NEGATIVO',
+      "Você sofreu uma lesão e precisará de tempo para se recuperar.",
+      undefined,
+      -5,
+      'physical',
+      undefined
+    );
+  }
+  
+  // Eventos normais
+  if (eventType < 0.3) {
     return generateTrainingEvent(playerProfile, choice, currentTimeline);
-  } else if (eventType < 0.5) {
+  } else if (eventType < 0.6) {
     return generateMatchEvent(playerProfile, choice, currentTimeline);
-  } else if (eventType < 0.75) {
+  } else if (eventType < 0.8) {
     return generateMediaEvent(playerProfile, choice, currentTimeline);
   } else {
+    // Usar o método existente para eventos de patrocínio
     return generateSponsorEvent(playerProfile, choice, currentTimeline);
   }
 };
@@ -462,21 +595,68 @@ const generateWeekEvents = (
 
 export const gameService = {
   startGame: async (playerProfile: PlayerProfile): Promise<GameResponse> => {
-    const initialNarrative = `Bem-vindo à sua jornada no mundo do futebol! Você é um jovem talento de ${playerProfile.age} anos, vindo de ${playerProfile.nationality} e jogando como ${playerProfile.position} no clube ${playerProfile.startClub}. Prepare-se para tomar decisões que irão moldar sua carreira.`;
-    const initialTimeline = generateInitialTimeline();
-
-    return {
-      narrative: initialNarrative,
-      nextEvent: {
+    try {
+      // Inicializar serviços necessários
+      await initServices();
+      
+      // Gerar narrativa de introdução usando o template INTRO
+      const narrativeContext: NarrativeContext = {
+        playerProfile,
+        eventType: 'INTRO'
+      };
+      
+      const narrativeResponse = await NarrativeService.generateNarrative(narrativeContext);
+      
+      const initialTimeline = Array.from({ length: 52 }, (_, i) => ({
+        slot: i + 1,
+        type: 'WEEK',
+        choice: null,
+        result: null,
+      }));
+      
+      // Usar as opções geradas pela IA, se disponíveis
+      const nextEventOptions = {
         labelA: "Começar a Treinar",
         labelB: "Analisar Estatísticas"
-      },
-      outcome: {
-        type: "NEUTRO",
-        message: "O início de uma nova jornada."
-      },
-      timeline: initialTimeline,
-    };
+      };
+      
+      if (narrativeResponse.nextEvent) {
+        nextEventOptions.labelA = narrativeResponse.nextEvent.labelA;
+        nextEventOptions.labelB = narrativeResponse.nextEvent.labelB;
+      }
+
+      return {
+        narrative: narrativeResponse.narrative,
+        nextEvent: nextEventOptions,
+        outcome: {
+          type: "NEUTRO",
+          message: "O início de uma nova jornada."
+        },
+        timeline: initialTimeline,
+      };
+    } catch (error) {
+      console.error("Error starting game:", error);
+      // Fallback para narrativa padrão se a IA falhar
+      const initialTimeline = Array.from({ length: 52 }, (_, i) => ({
+        slot: i + 1,
+        type: 'WEEK',
+        choice: null,
+        result: null,
+      }));
+      
+      return {
+        narrative: `<cyan>Bem-vindo à sua jornada no mundo do futebol! Você é um jovem talento de ${playerProfile.age} anos, vindo de ${playerProfile.nationality} e jogando como ${playerProfile.position} no clube ${playerProfile.startClub}. Prepare-se para tomar decisões que irão moldar sua carreira.</cyan>`,
+        nextEvent: {
+          labelA: "Começar a Treinar",
+          labelB: "Analisar Estatísticas"
+        },
+        outcome: {
+          type: "NEUTRO",
+          message: "O início de uma nova jornada."
+        },
+        timeline: initialTimeline,
+      };
+    }
   },
 
   chooseNextEvent: async (
@@ -484,7 +664,7 @@ export const gameService = {
     choice: 'A' | 'B',
     currentTimeline: TimelineEvent[]
   ): Promise<GameResponse> => {
-    const gameResponse = generateRandomEvent(playerProfile, choice, currentTimeline);
+    const gameResponse = await generateRandomEvent(playerProfile, choice, currentTimeline);
 
     // Save choice to database
     const choiceData: Omit<Choice, 'id'> = {
@@ -584,7 +764,12 @@ export const gameService = {
     // Use the player's current timeline from the last choice
     const currentTimeline = choiceLog.length > 0 && choiceLog[choiceLog.length - 1].timeline 
       ? choiceLog[choiceLog.length - 1].timeline 
-      : generateInitialTimeline();
+      : Array.from({ length: 52 }, (_, i) => ({
+          slot: i + 1,
+          type: 'WEEK',
+          choice: null,
+          result: null,
+        }));
     
     // Check if this is a specific action that we need to handle differently
     const lastChoice = choiceLog.length > 0 ? choiceLog[choiceLog.length - 1] : null;
