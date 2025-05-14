@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { gameService } from '@/services/gameService';
@@ -213,7 +214,11 @@ const GameScreen = () => {
       heading: "Cabeceio",
       charisma: "Carisma",
       passing: "Passe",
-      defense: "Defesa"
+      defense: "Defesa",
+      // Add the following properties for backward compatibility
+      pace: "Ritmo",
+      dribbling: "Drible",
+      defending: "Defesa"
     };
     return displayNames[attr] || attr;
   };

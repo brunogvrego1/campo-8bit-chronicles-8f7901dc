@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { NationalityOption, PositionOption, PlayerProfile } from '@/lib/types';
@@ -37,7 +38,11 @@ const generatePlayerAttributes = () => {
     heading: generateAttributeValue(),
     charisma: generateAttributeValue(),
     passing: generateAttributeValue(),
-    defense: generateAttributeValue()
+    defense: generateAttributeValue(),
+    // Add the following properties for backward compatibility
+    pace: generateAttributeValue(),
+    dribbling: generateAttributeValue(),
+    defending: generateAttributeValue()
   };
 };
 
