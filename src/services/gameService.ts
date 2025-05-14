@@ -100,6 +100,11 @@ const getPeriodName = (slot: number): string => {
   }
 };
 
+// Format player attributes for the prompt
+const formatPlayerAttributes = (attributes: PlayerProfile['attributes']): string => {
+  return `Atributos: Vel ${attributes.speed}  Fís ${attributes.physical}  Chu ${attributes.shooting}  Cab ${attributes.heading}  Car ${attributes.charisma}  Pas ${attributes.passing}  Def ${attributes.defense}`;
+};
+
 export const gameService = {
   startGame: async (playerProfile: PlayerProfile): Promise<GameResponse> => {
     console.log("Starting game with profile:", playerProfile);
@@ -107,15 +112,6 @@ export const gameService = {
     try {
       // Generate initial timeline for the day
       const timeline = generateDayTimeline();
-      
-      // Format player attributes (mock values for now)
-      const playerAttributes = {
-        Tec: 7,
-        Tat: 5,
-        Fis: 6,
-        Men: 5,
-        Car: 6
-      };
       
       // Format the timeline for the prompt
       const timelinePrompt = formatTimelineForPrompt(timeline, []);
@@ -141,7 +137,7 @@ export const gameService = {
 ${timelinePrompt}
 Perfil
 Nome: ${playerProfile.name} • ${playerProfile.age} anos • ${playerProfile.nationality} • ${playerProfile.position} • ${playerProfile.startClub}
-Atributos: Téc ${playerAttributes.Tec}  Tat ${playerAttributes.Tat}  Fís ${playerAttributes.Fis}  Men ${playerAttributes.Men}  Car ${playerAttributes.Car}
+${formatPlayerAttributes(playerProfile.attributes)}
 ###
 Tarefa
 Como narrador, descreva o primeiro treino técnico da manhã do jogador no clube
@@ -213,15 +209,6 @@ Mantenha a narrativa envolvente e fluida, em um tom dramático e imersivo.`
       
       // Determine current slot based on choices made
       const currentSlot = Math.min(choiceLog.length + 1, 4);
-      
-      // Format player attributes (mock values for now)
-      const playerAttributes = {
-        Tec: 7,
-        Tat: 5,
-        Fis: 6,
-        Men: 5,
-        Car: 6
-      };
       
       // Determine what type of event to show based on the current slot
       let eventType, promptTask;
@@ -300,7 +287,7 @@ e ofereça 2 opções de como o jogador pode reagir após o jogo.`;
 ${timelinePrompt}
 Perfil
 Nome: ${playerProfile.name} • ${playerProfile.age} anos • ${getNationalityAdjective(playerProfile.nationality)} • ${playerProfile.position} • ${playerProfile.startClub}
-Atributos: Téc ${playerAttributes.Tec}  Tat ${playerAttributes.Tat}  Fís ${playerAttributes.Fis}  Men ${playerAttributes.Men}  Car ${playerAttributes.Car}
+${formatPlayerAttributes(playerProfile.attributes)}
 ###
 Histórico de escolhas anteriores:
 ${choiceLog.map((log, idx) => {

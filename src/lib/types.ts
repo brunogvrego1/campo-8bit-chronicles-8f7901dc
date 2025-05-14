@@ -1,4 +1,3 @@
-
 export interface PlayerProfile {
   name: string;
   age: number;
@@ -6,6 +5,15 @@ export interface PlayerProfile {
   position: string;
   startClub?: string;
   createdAt: string;
+  attributes: {
+    speed: number;
+    physical: number;
+    shooting: number;
+    heading: number;
+    charisma: number;
+    passing: number;
+    defense: number;
+  };
 }
 
 export interface TimelineEvent {

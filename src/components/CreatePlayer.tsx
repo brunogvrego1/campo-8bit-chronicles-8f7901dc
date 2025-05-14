@@ -5,6 +5,42 @@ import { gameService } from '@/services/gameService';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from '@/hooks/use-toast';
 
+// Generate attributes with a rare chance for high values (1-20 scale)
+const generatePlayerAttributes = () => {
+  // Helper function to generate a random attribute value
+  const generateAttributeValue = () => {
+    // Basic random value between 1-10 for most players
+    let value = Math.floor(Math.random() * 10) + 1;
+    
+    // Small chance (5%) for a decent attribute (11-15)
+    if (Math.random() < 0.05) {
+      value = Math.floor(Math.random() * 5) + 11;
+      
+      // Very small chance (1%) for a high attribute (16-19)
+      if (Math.random() < 0.01) {
+        value = Math.floor(Math.random() * 4) + 16;
+        
+        // Extremely rare chance (0.1%) for a max attribute (20)
+        if (Math.random() < 0.001) {
+          value = 20;
+        }
+      }
+    }
+    
+    return value;
+  };
+  
+  return {
+    speed: generateAttributeValue(),
+    physical: generateAttributeValue(),
+    shooting: generateAttributeValue(),
+    heading: generateAttributeValue(),
+    charisma: generateAttributeValue(),
+    passing: generateAttributeValue(),
+    defense: generateAttributeValue()
+  };
+};
+
 const nationalities: NationalityOption[] = [
   { code: 'BR', name: 'Brasil', flag: '🇧🇷', league: 'Brasileirão', startClub: '' },
   { code: 'US', name: 'EUA', flag: '🇺🇸', league: 'MLS', startClub: '' },
@@ -35,6 +71,7 @@ const CreatePlayer = () => {
   const [position, setPosition] = useState<PositionOption | null>(null);
   const [startClub, setStartClub] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [playerAttributes, setPlayerAttributes] = useState(generatePlayerAttributes());
   
   const handleNext = () => {
     setCreationStep(creationStep + 1);
@@ -125,8 +162,16 @@ const CreatePlayer = () => {
     }
   };
   
+  // Function to regenerate player attributes
+  const regenerateAttributes = () => {
+    setPlayerAttributes(generatePlayerAttributes());
+  };
+  
   const handlePositionSelected = async (pos: PositionOption) => {
     setPosition(pos);
+    
+    // Regenerate attributes when position changes
+    regenerateAttributes();
     
     if (nationality) {
       const club = await generateRandomClub();
@@ -172,7 +217,8 @@ const CreatePlayer = () => {
       nationality: selectedNation.code,
       position: selectedPos.code,
       startClub: club,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      attributes: playerAttributes
     };
     
     // Save profile to store
@@ -202,6 +248,26 @@ const CreatePlayer = () => {
   };
   
   const isNameValid = name.length >= 3 && name.length <= 15;
+  
+  // Get attribute description based on value
+  const getAttributeDescription = (value: number): string => {
+    if (value >= 18) return "Excepcional";
+    if (value >= 15) return "Excelente";
+    if (value >= 12) return "Bom";
+    if (value >= 8) return "Médio";
+    if (value >= 5) return "Regular";
+    return "Fraco";
+  };
+  
+  // Get CSS color class for attribute value
+  const getAttributeColorClass = (value: number): string => {
+    if (value >= 18) return "text-purple-400";
+    if (value >= 15) return "text-green-400";
+    if (value >= 12) return "text-blue-400";
+    if (value >= 8) return "text-white";
+    if (value >= 5) return "text-yellow-400";
+    return "text-red-400";
+  };
   
   // Render the current creation step
   const renderStep = () => {
@@ -423,7 +489,90 @@ const CreatePlayer = () => {
           </div>
         );
       
+      // Add new step for attributes
       case 6:
+        return (
+          <div className="flex flex-col items-center space-y-6">
+            <h2 className="text-lg font-pixel cyan-text">Atributos do Jogador</h2>
+            
+            <div className="border-2 border-cyan p-4 w-full">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Velocidade:</span>
+                  <span className={`${getAttributeColorClass(playerAttributes.speed)} font-bold`}>
+                    {playerAttributes.speed} ({getAttributeDescription(playerAttributes.speed)})
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Físico:</span>
+                  <span className={`${getAttributeColorClass(playerAttributes.physical)} font-bold`}>
+                    {playerAttributes.physical} ({getAttributeDescription(playerAttributes.physical)})
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Chute:</span>
+                  <span className={`${getAttributeColorClass(playerAttributes.shooting)} font-bold`}>
+                    {playerAttributes.shooting} ({getAttributeDescription(playerAttributes.shooting)})
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Cabeceio:</span>
+                  <span className={`${getAttributeColorClass(playerAttributes.heading)} font-bold`}>
+                    {playerAttributes.heading} ({getAttributeDescription(playerAttributes.heading)})
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Carisma:</span>
+                  <span className={`${getAttributeColorClass(playerAttributes.charisma)} font-bold`}>
+                    {playerAttributes.charisma} ({getAttributeDescription(playerAttributes.charisma)})
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Passe:</span>
+                  <span className={`${getAttributeColorClass(playerAttributes.passing)} font-bold`}>
+                    {playerAttributes.passing} ({getAttributeDescription(playerAttributes.passing)})
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Defesa:</span>
+                  <span className={`${getAttributeColorClass(playerAttributes.defense)} font-bold`}>
+                    {playerAttributes.defense} ({getAttributeDescription(playerAttributes.defense)})
+                  </span>
+                </div>
+              </div>
+              
+              <div className="mt-4 text-xs">
+                <p className="text-gray-400">* Atributos gerados aleatoriamente com base no seu perfil</p>
+              </div>
+            </div>
+            
+            {/* Refresh attributes button */}
+            <button
+              className="retro-button retro-button-secondary w-full"
+              onClick={regenerateAttributes}
+            >
+              REGENERAR ATRIBUTOS
+            </button>
+            
+            <div className="flex w-full justify-between mt-8">
+              <button 
+                className="retro-button retro-button-secondary"
+                onClick={handleBack}
+              >
+                VOLTAR
+              </button>
+              
+              <button 
+                className="retro-button"
+                onClick={handleNext}
+              >
+                PRÓXIMO
+              </button>
+            </div>
+          </div>
+        );
+      
+      case 7:
         return (
           <div className="flex flex-col items-center space-y-6">
             <h2 className="text-lg font-pixel cyan-text">Confirmar Jogador</h2>
@@ -445,6 +594,23 @@ const CreatePlayer = () => {
               <div className="mt-4 text-xs">
                 <p className="cyan-text">Clube: {startClub || 'Clube'}</p>
                 <p>{nationality?.league || 'Liga'}</p>
+              </div>
+              
+              <div className="mt-4 border-t border-cyan pt-2">
+                <p className="text-xs font-bold mb-1">Atributos Principais:</p>
+                {/* Show top 3 attributes */}
+                {Object.entries(playerAttributes)
+                  .sort(([, a], [, b]) => b - a)
+                  .slice(0, 3)
+                  .map(([key, value], index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <span className="text-xs capitalize">{key}:</span>
+                      <span className={`${getAttributeColorClass(value)} text-xs font-bold`}>
+                        {value} ({getAttributeDescription(value)})
+                      </span>
+                    </div>
+                  ))
+                }
               </div>
             </div>
             
