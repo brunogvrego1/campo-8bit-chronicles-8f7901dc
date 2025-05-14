@@ -13,6 +13,11 @@ export interface Choice {
   event: string;
   choice: string | null;
   timestamp: string;
+  narrative?: string;
+  outcome?: {
+    type: "POSITIVO" | "NEGATIVO" | "NEUTRO" | "DECISIVO" | "ESTRATÉGICO";
+    message: string;
+  };
 }
 
 export interface GameState {

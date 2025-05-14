@@ -38,19 +38,23 @@ const GameScreen = () => {
     try {
       setLoading(true);
       
-      // Record choice in log
+      // Get the choice text
+      const choiceText = choice === 'A' ? nextOptions.labelA : nextOptions.labelB;
+      
+      // Get next narrative based on choice
+      const response = await gameService.makeChoice(playerProfile, [...choiceLog], choice);
+      
+      // Record choice in log with narrative and outcome
       const newChoice = {
         id: choiceLog.length,
         event: choiceLog.length === 0 ? 'INTRO' : `CHOICE_${choiceLog.length}`,
         choice,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        narrative: currentNarrative, // Save current narrative (before the choice)
+        outcome: response.outcome // Save outcome of the choice
       };
       
       addChoice(newChoice);
-      
-      // Get next narrative based on choice
-      const choiceText = choice === 'A' ? nextOptions.labelA : nextOptions.labelB;
-      const response = await gameService.makeChoice(playerProfile, [...choiceLog, newChoice], choice);
       
       // Update game state
       setCurrentNarrative(response.narrative);

@@ -8,7 +8,8 @@ const HistoryView = () => {
   const { playerProfile, choiceLog, setActiveScreen } = useGameStore();
   const { toast } = useToast();
   const [page, setPage] = useState(0);
-  const itemsPerPage = 10;
+  const [expandedChoice, setExpandedChoice] = useState<number | null>(null);
+  const itemsPerPage = 5; // Reduced to show fewer items per page due to increased content
   
   // Calculate the total number of pages
   const totalPages = Math.ceil(choiceLog.length / itemsPerPage);
@@ -18,6 +19,16 @@ const HistoryView = () => {
     page * itemsPerPage,
     (page + 1) * itemsPerPage
   );
+  
+  // Helper function to colorize narrative text
+  const formatNarrative = (text: string) => {
+    if (!text) return '';
+    
+    return text
+      .replace(/<cyan>(.*?)<\/cyan>/g, '<span class="cyan-text">$1</span>')
+      .replace(/<yellow>(.*?)<\/yellow>/g, '<span class="yellow-text">$1</span>')
+      .replace(/<magenta>(.*?)<\/magenta>/g, '<span class="magenta-text">$1</span>');
+  };
   
   // Generate choice display text
   const getChoiceText = (choice: string | null, event: string) => {
@@ -32,11 +43,40 @@ const HistoryView = () => {
     return `Escolheu ${choice === 'A' ? '①' : '②'}`;
   };
   
-  // Generate background color based on event type
-  const getEventColor = (event: string) => {
-    if (event === 'INTRO') return 'bg-cyan-DEFAULT bg-opacity-20';
-    if (event.includes('CHOICE')) return 'bg-magenta-DEFAULT bg-opacity-20';
+  // Generate background color based on event type or outcome type
+  const getEventColor = (choice: Choice) => {
+    if (choice.outcome) {
+      switch (choice.outcome.type) {
+        case 'POSITIVO': return 'bg-green-700 bg-opacity-20';
+        case 'NEGATIVO': return 'bg-red-700 bg-opacity-20';
+        case 'NEUTRO': return 'bg-gray-700 bg-opacity-20';
+        case 'DECISIVO': return 'bg-yellow-700 bg-opacity-20';
+        case 'ESTRATÉGICO': return 'bg-cyan-DEFAULT bg-opacity-20';
+      }
+    }
+    
+    if (choice.event === 'INTRO') return 'bg-cyan-DEFAULT bg-opacity-20';
+    if (choice.event.includes('CHOICE')) return 'bg-magenta-DEFAULT bg-opacity-20';
     return '';
+  };
+  
+  const getOutcomeIcon = (type: string) => {
+    switch (type) {
+      case 'POSITIVO': return '✅';
+      case 'NEGATIVO': return '❌';
+      case 'NEUTRO': return '➖';
+      case 'DECISIVO': return '⭐';
+      case 'ESTRATÉGICO': return '💡';
+      default: return '';
+    }
+  };
+  
+  const toggleExpand = (id: number) => {
+    if (expandedChoice === id) {
+      setExpandedChoice(null);
+    } else {
+      setExpandedChoice(id);
+    }
   };
   
   const copyHistoryUrl = () => {
@@ -70,18 +110,52 @@ const HistoryView = () => {
         </div>
       )}
       
-      <div className="space-y-2 mb-6">
+      <div className="space-y-4 mb-6">
         {currentChoices.map((choice, index) => (
           <div 
             key={choice.id} 
-            className={`p-3 border border-gray-700 flex items-center ${getEventColor(choice.event)}`}
+            className={`border border-gray-700 ${getEventColor(choice)}`}
           >
-            <div className="w-8 h-8 flex items-center justify-center bg-gray-900 mr-3 flex-shrink-0">
-              {page * itemsPerPage + index + 1}
+            <div 
+              className="p-3 flex items-center cursor-pointer"
+              onClick={() => toggleExpand(choice.id)}
+            >
+              <div className="w-8 h-8 flex items-center justify-center bg-gray-900 mr-3 flex-shrink-0">
+                {page * itemsPerPage + index + 1}
+              </div>
+              <div className="text-sm flex-grow">
+                {getChoiceText(choice.choice, choice.event)}
+              </div>
+              {choice.outcome && (
+                <div className="text-lg ml-2" title={choice.outcome.message}>
+                  {getOutcomeIcon(choice.outcome.type)}
+                </div>
+              )}
+              <div className="ml-2">
+                {expandedChoice === choice.id ? '▲' : '▼'}
+              </div>
             </div>
-            <div className="text-sm">
-              {getChoiceText(choice.choice, choice.event)}
-            </div>
+            
+            {expandedChoice === choice.id && (
+              <div className="px-4 pb-4 pt-2 border-t border-gray-700">
+                {choice.narrative && (
+                  <div className="mb-3">
+                    <h4 className="text-xs text-gray-400 mb-1">Narrativa:</h4>
+                    <div 
+                      className="text-xs"
+                      dangerouslySetInnerHTML={{ __html: formatNarrative(choice.narrative) }}
+                    />
+                  </div>
+                )}
+                
+                {choice.outcome && (
+                  <div>
+                    <h4 className="text-xs text-gray-400 mb-1">Efeito:</h4>
+                    <div className="text-xs">{choice.outcome.message}</div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ))}
         
