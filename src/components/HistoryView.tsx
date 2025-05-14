@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
-import { ArrowLeft, Copy, Trash2, User, Calendar, Flag, Trophy, Football, Shield } from 'lucide-react';
+import { ArrowLeft, Copy, Trash2, User, Calendar, Flag, Trophy, Award, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Choice } from '@/lib/types'; // Added import for Choice type
 import { 
@@ -135,7 +135,7 @@ const HistoryView = () => {
           </div>
           
           <div className="flex items-center">
-            <Football className="w-4 h-4 mr-2 text-gray-400" />
+            <Award className="w-4 h-4 mr-2 text-gray-400" />
             <div>
               <p className="text-gray-400">Gols</p>
               <p>{careerStats.goals}</p>

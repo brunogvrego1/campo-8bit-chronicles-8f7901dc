@@ -75,7 +75,7 @@ const GameScreen = () => {
       'força': 'physical',
       'força física': 'physical',
       'muscular': 'physical',
-      'cabeça': 'cabeceio',
+      'cabeça': 'heading',
       'cabeceio': 'heading',
       'cabeçada': 'heading',
       'cabecear': 'heading',
@@ -309,7 +309,7 @@ const GameScreen = () => {
           <span>{careerStats.age} anos</span>
         </div>
         <div className="flex items-center">
-          <Football className="w-3 h-3 mr-1" />
+          <Award className="w-3 h-3 mr-1" />
           <span>{careerStats.goals} gols</span>
         </div>
         <div className="flex items-center">
