@@ -4,6 +4,7 @@ export interface PlayerProfile {
   nationality: string;
   position: string;
   startClub: string;
+  createdAt?: string;
   attributes: {
     speed: number;
     physical: number;
@@ -13,6 +14,16 @@ export interface PlayerProfile {
     passing: number;
     defense: number;
   };
+}
+
+export interface NationalityOption {
+  value: string;
+  label: string;
+}
+
+export interface PositionOption {
+  value: string;
+  label: string;
 }
 
 export interface Choice {
@@ -106,6 +117,7 @@ export interface GameState {
   } | null;
   isLoading: boolean;
   gameStarted: boolean;
+  gameEnded: boolean;
   activeScreen: "creation" | "game" | "history";
   creationStep: number;
   xpPool: number;

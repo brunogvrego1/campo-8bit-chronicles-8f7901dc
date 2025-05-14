@@ -10,6 +10,7 @@ const initialState: GameState = {
   nextOptions: null,
   isLoading: false,
   gameStarted: false,
+  gameEnded: false,
   activeScreen: "creation",
   creationStep: 0,
   xpPool: 0,
@@ -39,6 +40,7 @@ export const useGameStore = create<GameState & {
   setNextOptions: (options: { labelA: string; labelB: string; }) => void;
   setLoading: (isLoading: boolean) => void;
   startGame: () => void;
+  endGame: () => void;
   setActiveScreen: (screen: "creation" | "game" | "history") => void;
   setCreationStep: (step: number) => void;
   resetGame: () => void;
@@ -56,7 +58,7 @@ export const useGameStore = create<GameState & {
     followers?: number 
   }) => void;
   incrementAge: () => void;
-}>()(
+})()(
   persist(
     (set, get) => ({
       ...initialState,
@@ -88,6 +90,11 @@ export const useGameStore = create<GameState & {
       startGame: () => set(() => ({ 
         gameStarted: true,
         activeScreen: "game" 
+      })),
+      
+      endGame: () => set(() => ({
+        gameEnded: true,
+        nextOptions: null
       })),
       
       setActiveScreen: (screen) => set(() => ({ 

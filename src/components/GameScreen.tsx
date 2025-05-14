@@ -1,8 +1,9 @@
+
 import { useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { gameService } from '@/services/gameService';
 import { ArrowRight, History, Award } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { PlayerProfile } from '@/lib/types';
 import StatsBox from './StatsBox';
 
@@ -13,6 +14,7 @@ const GameScreen = () => {
     currentNarrative, 
     nextOptions, 
     isLoading, 
+    gameEnded,
     setLoading,
     addChoice, 
     setCurrentNarrative, 
@@ -23,10 +25,92 @@ const GameScreen = () => {
     addXp,
     setAttributeFocus,
     careerStats,
-    updateCareerStats
+    updateCareerStats,
+    endGame
   } = useGameStore();
   
   const { toast } = useToast();
+  
+  // Check if the game should end after 3 choices
+  useEffect(() => {
+    if (choiceLog.length >= 3 && !gameEnded) {
+      // Generate post-game summary
+      generatePostGameSummary();
+    }
+  }, [choiceLog.length, gameEnded]);
+
+  // Generate a summary for the post-game
+  const generatePostGameSummary = async () => {
+    if (!playerProfile) return;
+    
+    try {
+      setLoading(true);
+      
+      // End the game
+      endGame();
+      
+      // Create a summary of the player's journey
+      const lastChoice = choiceLog[choiceLog.length - 1];
+      
+      // Calculate some stats from the choices
+      let positiveOutcomes = 0;
+      let negativeOutcomes = 0;
+      
+      choiceLog.forEach(choice => {
+        if (choice.outcome?.type === "POSITIVO" || choice.outcome?.type === "DECISIVO") {
+          positiveOutcomes++;
+        } else if (choice.outcome?.type === "NEGATIVO") {
+          negativeOutcomes++;
+        }
+      });
+      
+      // Generate a dynamic post-game narrative
+      let postGameNarrative = '';
+      
+      if (positiveOutcomes >= 2) {
+        postGameNarrative = `<magenta>A primeira semana de ${playerProfile.name} no ${playerProfile.startClub} foi um sucesso! A comissão técnica ficou bastante impressionada com seu desempenho e os torcedores já começam a falar o seu nome. As expectativas para a temporada aumentaram!</magenta>`;
+      } else if (negativeOutcomes >= 2) {
+        postGameNarrative = `<yellow>A primeira semana de ${playerProfile.name} no ${playerProfile.startClub} foi desafiadora. Alguns erros marcaram esta estreia, mas há tempo para recuperação. A comissão técnica acredita que o nervosismo inicial logo passará.</yellow>`;
+      } else {
+        postGameNarrative = `<cyan>A primeira semana de ${playerProfile.name} no ${playerProfile.startClub} chegou ao fim com um desempenho consistente. Nem brilhante, nem decepcionante, você mostrou que tem potencial para crescer no clube.</cyan>`;
+      }
+      
+      // Add information about attribute focus and improvement
+      const mostFocusedAttribute = getMostFocusedAttribute();
+      
+      if (mostFocusedAttribute) {
+        postGameNarrative += `\n\n<cyan>Seu foco principal nesta semana foi melhorar ${getAttributeDisplayName(mostFocusedAttribute)}. Continue treinando este aspecto para evoluir rapidamente.</cyan>`;
+      }
+      
+      // Add summary about the career progress
+      postGameNarrative += `\n\n<cyan>Primeira semana concluída: ${positiveOutcomes} momentos positivos, ${negativeOutcomes} desafios, ${choiceLog.length - positiveOutcomes - negativeOutcomes} situações neutras.</cyan>`;
+      
+      // Update the narrative with the post-game summary
+      setCurrentNarrative(postGameNarrative);
+      
+    } catch (error) {
+      console.error("Failed to generate post-game summary:", error);
+      setCurrentNarrative("<yellow>Sua primeira semana chegou ao fim. Continue treinando para melhorar suas habilidades.</yellow>");
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Get the most focused attribute during the game
+  const getMostFocusedAttribute = (): keyof PlayerProfile['attributes'] | null => {
+    const attributeCounts: Record<string, number> = {};
+    
+    choiceLog.forEach(choice => {
+      if (choice.attributeFocus) {
+        attributeCounts[choice.attributeFocus] = (attributeCounts[choice.attributeFocus] || 0) + 1;
+      }
+    });
+    
+    if (Object.keys(attributeCounts).length === 0) return null;
+    
+    return Object.entries(attributeCounts)
+      .sort((a, b) => b[1] - a[1])[0][0] as keyof PlayerProfile['attributes'];
+  };
   
   // Helper function to colorize narrative text
   const formatNarrative = (text: string) => {
@@ -58,55 +142,20 @@ const GameScreen = () => {
     return "text-red-400";
   };
   
-  // Choose a related training attribute based on choice
-  const chooseAttributeFocus = (choice: string): keyof PlayerProfile['attributes'] | null => {
-    // Common training keywords and associated attributes
-    const keywords: Record<string, keyof PlayerProfile['attributes']> = {
-      'finalização': 'shooting',
-      'finalizacao': 'shooting',
-      'chute': 'shooting',
-      'chutar': 'shooting',
-      'gol': 'shooting',
-      'passe': 'passing',
-      'passes': 'passing',
-      'velocidade': 'speed',
-      'correr': 'speed',
-      'velocidad': 'speed',
-      'físic': 'physical',
-      'força': 'physical',
-      'força física': 'physical',
-      'muscular': 'physical',
-      'cabeça': 'heading',
-      'cabeceio': 'heading',
-      'cabeçada': 'heading',
-      'cabecear': 'heading',
-      'defesa': 'defense',
-      'defender': 'defense',
-      'marcação': 'defense',
-      'marcar': 'defense',
-      'carisma': 'charisma',
-      'interview': 'charisma',
-      'imprensa': 'charisma',
-      'entrevista': 'charisma'
+  // Function to convert attribute keys to display names
+  const getAttributeDisplayName = (attr: keyof PlayerProfile['attributes']): string => {
+    const displayNames: Record<keyof PlayerProfile['attributes'], string> = {
+      speed: "Velocidade",
+      physical: "Físico",
+      shooting: "Chute",
+      heading: "Cabeceio",
+      charisma: "Carisma",
+      passing: "Passe",
+      defense: "Defesa"
     };
-    
-    // Convert choice to lowercase for case-insensitive matching
-    const lowerChoice = choice.toLowerCase();
-    
-    // Find a matching keyword
-    for (const [keyword, attribute] of Object.entries(keywords)) {
-      if (lowerChoice.includes(keyword)) {
-        return attribute;
-      }
-    }
-    
-    // Default to a random attribute if no match found
-    const attributes: Array<keyof PlayerProfile['attributes']> = [
-      'speed', 'physical', 'shooting', 'heading', 'charisma', 'passing', 'defense'
-    ];
-    return attributes[Math.floor(Math.random() * attributes.length)];
+    return displayNames[attr] || attr;
   };
-  
+
   // Make a choice
   const handleChoice = async (choice: 'A' | 'B') => {
     if (!playerProfile || !nextOptions) return;
@@ -183,33 +232,22 @@ const GameScreen = () => {
       }
       
       // Update career stats for match performance
-      const currentSlot = choiceLog.length % 4;
-      if (currentSlot >= 2 && response.matchStats) { // Slots 3-4: Match day events
+      if (response.matchStats) {
         const statsUpdate = {
-          matches: currentSlot === 2 ? 1 : 0, // Only count once per match (on first match action)
+          matches: 1,
           goals: response.matchStats?.goals || 0,
           assists: response.matchStats?.assists || 0,
           keyDefenses: response.matchStats?.keyDefenses || 0
         };
         
         updateCareerStats(statsUpdate);
-      } else if (currentSlot === 1) { // Slot 2: Social media events
-        // Check if it's a social media event
-        const isLive = response.timeline?.[1]?.type === "LIVE_REDES";
-        
-        // Update followers based on charisma and random factor for social media events
-        if (isLive && playerProfile) {
-          const charismaBoost = playerProfile.attributes.charisma * 10;
-          const randomFactor = Math.floor(Math.random() * 50); // Random 0-50
-          updateCareerStats({ followers: charismaBoost + randomFactor });
-          
-          // Notify the user
-          toast({
-            title: "Redes Sociais",
-            description: `+${charismaBoost + randomFactor} seguidores`,
-            duration: 3000
-          });
-        }
+      }
+      
+      // Check if this is the final choice (3rd choice)
+      if (choiceLog.length >= 2) { // Already made 2, this is the 3rd
+        setTimeout(() => {
+          generatePostGameSummary();
+        }, 1000);
       }
       
     } catch (error) {
@@ -224,18 +262,53 @@ const GameScreen = () => {
     }
   };
   
-  // Function to convert attribute keys to display names
-  const getAttributeDisplayName = (attr: keyof PlayerProfile['attributes']): string => {
-    const displayNames: Record<keyof PlayerProfile['attributes'], string> = {
-      speed: "Velocidade",
-      physical: "Físico",
-      shooting: "Chute",
-      heading: "Cabeceio",
-      charisma: "Carisma",
-      passing: "Passe",
-      defense: "Defesa"
+  // Choose a related training attribute based on choice
+  const chooseAttributeFocus = (choice: string): keyof PlayerProfile['attributes'] | null => {
+    // Common training keywords and associated attributes
+    const keywords: Record<string, keyof PlayerProfile['attributes']> = {
+      'finalização': 'shooting',
+      'finalizacao': 'shooting',
+      'chute': 'shooting',
+      'chutar': 'shooting',
+      'gol': 'shooting',
+      'passe': 'passing',
+      'passes': 'passing',
+      'velocidade': 'speed',
+      'correr': 'speed',
+      'velocidad': 'speed',
+      'físic': 'physical',
+      'força': 'physical',
+      'força física': 'physical',
+      'muscular': 'physical',
+      'cabeça': 'heading',
+      'cabeceio': 'heading',
+      'cabeçada': 'heading',
+      'cabecear': 'heading',
+      'defesa': 'defense',
+      'defender': 'defense',
+      'marcação': 'defense',
+      'marcar': 'defense',
+      'carisma': 'charisma',
+      'interview': 'charisma',
+      'imprensa': 'charisma',
+      'entrevista': 'charisma'
     };
-    return displayNames[attr] || attr;
+    
+    // Convert choice to lowercase for case-insensitive matching
+    const lowerChoice = choice.toLowerCase();
+    
+    // Find a matching keyword
+    for (const [keyword, attribute] of Object.entries(keywords)) {
+      if (lowerChoice.includes(keyword)) {
+        return attribute;
+      }
+    }
+    
+    // Default to a random attribute if no match found
+    const attributes: Array<keyof PlayerProfile['attributes']> = [
+      'speed', 'physical', 'shooting', 'heading', 'charisma', 'passing', 'defense'
+    ];
+    return attributes[Math.floor(Math.random() * attributes.length)];
   };
   
   // Render XP progress bar
@@ -287,6 +360,25 @@ const GameScreen = () => {
       </div>
     );
   };
+
+  // Render restart game button (shown after game ends)
+  const renderRestartButton = () => {
+    if (!gameEnded) return null;
+
+    return (
+      <div className="mt-8 text-center">
+        <button
+          className="retro-button retro-button-primary w-full px-4 py-2"
+          onClick={() => {
+            // Reset game state and start a new game
+            window.location.reload();
+          }}
+        >
+          Iniciar Novo Jogo
+        </button>
+      </div>
+    );
+  };
   
   return (
     <div className="w-full max-w-md mx-auto px-4 py-6">
@@ -305,8 +397,8 @@ const GameScreen = () => {
       {/* Attribute Improvements */}
       {renderAttributeImprovements()}
       
-      {/* Choice Options */}
-      {nextOptions && !isLoading && (
+      {/* Choice Options - only show if game not ended */}
+      {nextOptions && !isLoading && !gameEnded && (
         <div className="grid grid-cols-1 gap-4 mb-8 mt-4">
           <button 
             className="retro-button w-full text-left flex items-center"
@@ -333,6 +425,9 @@ const GameScreen = () => {
         </div>
       )}
       
+      {/* Restart Game Button (only shows after game ends) */}
+      {renderRestartButton()}
+      
       {/* Navigation buttons */}
       <div className="flex justify-between mt-8">
         <button 
@@ -341,15 +436,6 @@ const GameScreen = () => {
         >
           <History className="w-4 h-4 mr-2" /> Histórico
         </button>
-        
-        {isLoading && (
-          <button 
-            className="retro-button flex items-center opacity-50"
-            disabled
-          >
-            Próximo <ArrowRight className="w-4 h-4 ml-2" />
-          </button>
-        )}
       </div>
     </div>
   );
