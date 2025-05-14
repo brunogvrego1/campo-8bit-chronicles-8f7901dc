@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { gameService } from '@/services/gameService';
-import { ArrowRight, History, User, Calendar, Flag, Trophy, Award, Shield } from 'lucide-react';
+import { ArrowRight, History, Award } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PlayerProfile } from '@/lib/types';
+import StatsBox from './StatsBox';
 
 const GameScreen = () => {
   const { 
@@ -300,42 +301,10 @@ const GameScreen = () => {
     );
   };
   
-  // Render career stats
-  const renderCareerStats = () => {
-    return (
-      <div className="mt-4 mb-2 flex flex-wrap items-center text-xs text-gray-300 gap-2 justify-between">
-        <div className="flex items-center">
-          <Calendar className="w-3 h-3 mr-1" />
-          <span>{careerStats.age} anos</span>
-        </div>
-        <div className="flex items-center">
-          <Award className="w-3 h-3 mr-1" />
-          <span>{careerStats.goals} gols</span>
-        </div>
-        <div className="flex items-center">
-          <Trophy className="w-3 h-3 mr-1" />
-          <span>{careerStats.assists} assists</span>
-        </div>
-        <div className="flex items-center">
-          <Shield className="w-3 h-3 mr-1" />
-          <span>{careerStats.keyDefenses} def</span>
-        </div>
-        <div className="flex items-center">
-          <Flag className="w-3 h-3 mr-1" />
-          <span>{careerStats.matches} jogos</span>
-        </div>
-        <div className="flex items-center">
-          <User className="w-3 h-3 mr-1" />
-          <span>{careerStats.followers.toLocaleString()} seg</span>
-        </div>
-      </div>
-    );
-  };
-  
   return (
     <div className="w-full max-w-md mx-auto px-4 py-6">
-      {/* Career Stats */}
-      {playerProfile && renderCareerStats()}
+      {/* Stats Box */}
+      {playerProfile && <StatsBox careerStats={careerStats} />}
       
       {/* XP Progress Bar */}
       {playerProfile && renderXpProgressBar()}
@@ -348,8 +317,6 @@ const GameScreen = () => {
       
       {/* Attribute Improvements */}
       {renderAttributeImprovements()}
-      
-      {/* Timeline information */}
       
       {/* Choice Options */}
       {nextOptions && !isLoading && (
