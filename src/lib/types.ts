@@ -1,4 +1,3 @@
-
 export interface PlayerProfile {
   name: string;
   age: number;
@@ -7,13 +6,20 @@ export interface PlayerProfile {
   startClub: string;
   createdAt?: string;
   attributes: {
-    speed: number;
-    physical: number;
+    pace: number;
     shooting: number;
-    heading: number;
-    charisma: number;
     passing: number;
-    defense: number;
+    dribbling: number;
+    defending: number;
+    physical: number;
+    [key: string]: number;
+  };
+  careerStats?: {
+    followers: number;
+    goals?: number;
+    assists?: number;
+    appearances?: number;
+    [key: string]: number | undefined;
   };
 }
 

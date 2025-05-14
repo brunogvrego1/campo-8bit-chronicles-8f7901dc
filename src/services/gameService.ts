@@ -1,5 +1,27 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { PlayerProfile, GameResponse, Choice, TimelineEvent } from "@/lib/types";
+
+// Variable to track if OpenAI has been initialized
+let isOpenAIInitialized = false;
+
+// Function to initialize OpenAI with an API key
+export const initializeOpenAI = (apiKey: string): boolean => {
+  try {
+    // We're just storing the initialization state for now
+    // In a real implementation, this would configure the OpenAI client
+    isOpenAIInitialized = true;
+    return true;
+  } catch (error) {
+    console.error("Error initializing OpenAI:", error);
+    return false;
+  }
+};
+
+// Function to check if OpenAI has been initialized
+export const isOpenAIInitialized = (): boolean => {
+  return isOpenAIInitialized;
+};
 
 const BASE_RATING = 5;
 const CELEBRITY_THRESHOLD = 100000;
@@ -386,12 +408,17 @@ const generateRandomEvent = (
   }
 };
 
-// Fix the missing matchStats properties in the mouseScore function
+// Fix the issues with missing properties in mouseScore function
 const mouseScore = (player: PlayerProfile) => {
+  // Define variables
+  const xpGain = Math.floor(Math.random() * 10);
+  const attributeKeys = Object.keys(player.attributes) as (keyof PlayerProfile['attributes'])[];
+  const attributeFocus = attributeKeys[Math.floor(Math.random() * attributeKeys.length)];
+  
   return {
     matchStats: {
-      goals: 0,  // Add goals property
-      assists: 0, // Add assists property  
+      goals: 0,
+      assists: 0,
       rating: Math.floor(Math.random() * 3) + 7,
       keyDefenses: Math.floor(Math.random() * 3)
     },
@@ -400,11 +427,11 @@ const mouseScore = (player: PlayerProfile) => {
   };
 };
 
-// Fix the missing matchStats properties in the generateRandomMatchStats function
+// Fix the missing properties in generateRandomMatchStats function
 const generateRandomMatchStats = (playerProfile: PlayerProfile) => {
   return {
-    goals: 0,  // Add goals property
-    assists: 0, // Add assists property
+    goals: 0,
+    assists: 0,
     rating: Math.floor(Math.random() * 2) + 7,
     keyDefenses: Math.floor(Math.random() * 2)
   };
@@ -553,7 +580,7 @@ export const gameService = {
     playerProfile: PlayerProfile,
     choiceLog: Choice[],
     choice: 'A' | 'B',
-    careerStats: any
+    careerStats: any // Make sure to use the correct type here
   ): Promise<GameResponse> => {
     // Use the player's current timeline from the last choice
     const currentTimeline = choiceLog.length > 0 && choiceLog[choiceLog.length - 1].timeline 
