@@ -16,7 +16,8 @@ export const gameService = {
       nextEvent: {
         labelA: "Treinar passe",
         labelB: "Treinar finalização"
-      }
+      },
+      outcome: null // No outcome for the first narrative
     };
   },
   
@@ -29,6 +30,12 @@ export const gameService = {
     // Get the last chosen option
     const lastChoiceEvent = choiceLog.length > 0 ? choiceLog[choiceLog.length - 1].event : "";
     
+    // Prepare a default outcome message
+    let outcome = {
+      type: choice === "A" ? "POSITIVO" : Math.random() > 0.5 ? "POSITIVO" : "NEUTRO", 
+      message: choice === "A" ? "Decisão bem recebida pela equipe" : "Resultado com efeito limitado"
+    };
+    
     // Simple branching narrative based on choices
     if (lastChoiceEvent === "INTRO") {
       if (choice === "A") {
@@ -37,6 +44,10 @@ export const gameService = {
           nextEvent: {
             labelA: "Participar do coletivo",
             labelB: "Fazer trabalho físico extra"
+          },
+          outcome: {
+            type: "POSITIVO",
+            message: "Treinador impressionado com sua visão de jogo"
           }
         };
       } else {
@@ -45,6 +56,10 @@ export const gameService = {
           nextEvent: {
             labelA: "Mostrar habilidades de drible",
             labelB: "Praticar bolas paradas"
+          },
+          outcome: {
+            type: "POSITIVO",
+            message: "Finalizações precisas chamaram atenção"
           }
         };
       }
@@ -56,6 +71,10 @@ export const gameService = {
           nextEvent: {
             labelA: "Agradecer a confiança",
             labelB: "Prometer marcar gols"
+          },
+          outcome: {
+            type: "POSITIVO",
+            message: "Selecionado para o time titular!"
           }
         },
         {
@@ -63,6 +82,10 @@ export const gameService = {
           nextEvent: {
             labelA: "Confrontar o jogador",
             labelB: "Ignorar e seguir treinando"
+          },
+          outcome: {
+            type: "NEGATIVO",
+            message: "Sofrido entrada dura no treino"
           }
         },
         {
@@ -70,6 +93,10 @@ export const gameService = {
           nextEvent: {
             labelA: "Conceder entrevista",
             labelB: "Pedir para falar outro dia"
+          },
+          outcome: {
+            type: "NEUTRO",
+            message: "Jornalista se interessou pela sua história"
           }
         },
         {
@@ -77,6 +104,13 @@ export const gameService = {
           nextEvent: {
             labelA: "Chutar a gol",
             labelB: "Tocar para o companheiro"
+          },
+          outcome: choice === "A" ? {
+            type: "DECISIVO",
+            message: "Momento crucial no jogo empatado"
+          } : {
+            type: "ESTRATÉGICO",
+            message: "Decisão importante em momento de pressão"
           }
         }
       ];

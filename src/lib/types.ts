@@ -48,4 +48,8 @@ export interface GameResponse {
     labelA: string;
     labelB: string;
   };
+  outcome?: {
+    type: "POSITIVO" | "NEGATIVO" | "NEUTRO" | "DECISIVO" | "ESTRATÉGICO";
+    message: string;
+  };
 }

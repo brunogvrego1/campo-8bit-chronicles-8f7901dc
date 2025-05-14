@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { gameService } from '@/services/gameService';
 import { ArrowRight, History } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const GameScreen = () => {
   const { 
@@ -17,6 +18,8 @@ const GameScreen = () => {
     setNextOptions,
     setActiveScreen
   } = useGameStore();
+  
+  const { toast } = useToast();
   
   // Helper function to colorize narrative text
   const formatNarrative = (text: string) => {
@@ -52,8 +55,28 @@ const GameScreen = () => {
       // Update game state
       setCurrentNarrative(response.narrative);
       setNextOptions(response.nextEvent);
+      
+      // Show toast with choice effect/outcome
+      if (response.outcome) {
+        const toastVariant = 
+          response.outcome.type === 'POSITIVO' ? 'default' : 
+          response.outcome.type === 'NEGATIVO' ? 'destructive' : 'default';
+        
+        toast({
+          title: `Escolha: ${choiceText}`,
+          description: response.outcome.message,
+          variant: toastVariant,
+          duration: 4000
+        });
+      }
+      
     } catch (error) {
       console.error("Failed to process choice:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível processar sua escolha.",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
