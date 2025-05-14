@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { ArrowLeft, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Choice } from '@/lib/types'; // Added import for Choice type
 
 const HistoryView = () => {
   const { playerProfile, choiceLog, setActiveScreen } = useGameStore();
