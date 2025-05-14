@@ -77,11 +77,11 @@ const GameScreen = () => {
         });
       }
       
-      // Record the event in choice log
+      // Record the event in choice log with proper typing
       const newChoice = {
         id: choiceLog.length,
         event: `WEEK_EVENT_${currentEventIndex + 1}`,
-        choice: 'A', // Default choice for auto-generated events
+        choice: 'A' as 'A' | 'B', // Fix the type by explicitly casting
         timestamp: new Date().toISOString(),
         narrative: currentEvent.narrative,
         nextEvent: currentEvent.nextEvent,
@@ -472,7 +472,7 @@ const GameScreen = () => {
         <div className="w-full h-3 bg-gray-700 border border-gray-600 pixel-borders">
           <div 
             className="h-full bg-cyan" 
-            style={{ width: `${percentage}%` }}
+            style={{ width: `${percentage.toString()}%` }}
           ></div>
         </div>
       </div>
@@ -507,7 +507,7 @@ const GameScreen = () => {
           className="retro-button retro-button-primary w-full px-4 py-2 flex items-center justify-center"
           onClick={startNewWeek}
         >
-          <Football className="w-5 h-5 mr-2" /> Iniciar Nova Semana
+          <Trophy className="w-5 h-5 mr-2" /> Iniciar Nova Semana
         </button>
       </div>
     );

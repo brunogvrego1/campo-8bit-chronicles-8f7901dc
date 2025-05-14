@@ -1,16 +1,15 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { PlayerProfile, GameResponse, Choice, TimelineEvent } from "@/lib/types";
 
 // Variable to track if OpenAI has been initialized
-let isOpenAIInitialized = false;
+let _isOpenAIInitialized = false;
 
 // Function to initialize OpenAI with an API key
 export const initializeOpenAI = (apiKey: string): boolean => {
   try {
     // We're just storing the initialization state for now
     // In a real implementation, this would configure the OpenAI client
-    isOpenAIInitialized = true;
+    _isOpenAIInitialized = true;
     return true;
   } catch (error) {
     console.error("Error initializing OpenAI:", error);
@@ -20,7 +19,7 @@ export const initializeOpenAI = (apiKey: string): boolean => {
 
 // Function to check if OpenAI has been initialized
 export const isOpenAIInitialized = (): boolean => {
-  return isOpenAIInitialized;
+  return _isOpenAIInitialized;
 };
 
 const BASE_RATING = 5;
@@ -278,7 +277,7 @@ const generateMediaEvent = (
       timelineEvents = [{ slot: 1, type: 'MEDIA', choice: 'A', result: 'Fracasso' }];
     }
   } else {
-    narrative = "Você preferiu evitar a mídia, focando em sua privacidade e desempenho no campo.";
+    narrative = "Você preferiu evitar a mídia, focando na privacidade e desempenho no campo.";
     outcomeMessage = "Manter a discrição pode ser bom para evitar distrações, mas limita o crescimento de sua imagem.";
     timelineEvents = [{ slot: 1, type: 'MEDIA', choice: 'B', result: 'Evitou' }];
   }
