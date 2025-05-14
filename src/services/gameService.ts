@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { PlayerProfile, GameResponse, Choice, TimelineEvent } from "@/lib/types";
 
@@ -53,15 +54,17 @@ const buildGameResponse = (
   };
 };
 
+// Modified to store choices in memory instead of database since no table exists yet
+let choiceHistory: Choice[] = [];
+
 const saveChoiceToDatabase = async (choiceData: Omit<Choice, 'id'>): Promise<void> => {
   try {
-    const { error } = await supabase
-      .from('choices')
-      .insert([choiceData]);
-
-    if (error) {
-      console.error("Error saving choice:", error);
-    }
+    // Instead of using Supabase, we'll store in memory for now
+    const newChoice = {
+      ...choiceData,
+      id: choiceHistory.length
+    };
+    choiceHistory.push(newChoice);
   } catch (error) {
     console.error("Error saving choice:", error);
   }
@@ -212,8 +215,6 @@ const generateMatchEvent = (
     }
   }
 
-  const followerChange = calculateFollowersChange(rating, 'NEUTRO');
-
   return buildGameResponse(
     narrative,
     "Próxima Partida",
@@ -234,8 +235,8 @@ const generateMediaEvent = (
   choice: 'A' | 'B',
   currentTimeline: TimelineEvent[]
 ): GameResponse => {
-  const { careerStats } = playerProfile;
-  const isWellKnown = isCelebrity(careerStats.followers);
+  const followers = playerProfile?.careerStats?.followers || 0;
+  const isWellKnown = isCelebrity(followers);
 
   let narrative = '';
   let outcomeMessage = '';
@@ -281,8 +282,8 @@ const generateSponsorEvent = (
   choice: 'A' | 'B',
   currentTimeline: TimelineEvent[]
 ): GameResponse => {
-  const { careerStats } = playerProfile;
-  const isFamous = isCelebrity(careerStats.followers);
+  const followers = playerProfile?.careerStats?.followers || 0;
+  const isFamous = isCelebrity(followers);
 
   let narrative = '';
   let outcomeMessage = '';
@@ -323,6 +324,51 @@ const generateSponsorEvent = (
   );
 };
 
+const generatePostMatchEvent = (
+  playerProfile: PlayerProfile,
+  choice: 'A' | 'B',
+  currentTimeline: TimelineEvent[]
+): GameResponse => {
+  let narrative = '';
+  let outcomeMessage = '';
+  let xpGain = 8;
+  let followerChange = 0;
+  let timelineEvents: TimelineEvent[] = [];
+
+  if (choice === 'A') {
+    narrative = "Você decide falar com a imprensa após o jogo para comentar o resultado.";
+    const success = Math.random() > 0.4;
+
+    if (success) {
+      followerChange = Math.floor(Math.random() * 300);
+      outcomeMessage = "Suas palavras foram bem recebidas pela mídia e pelos torcedores!";
+      timelineEvents = [{ slot: 1, type: 'POST_MATCH', choice: 'A', result: 'Boa entrevista' }];
+    } else {
+      followerChange = -Math.floor(Math.random() * 150);
+      outcomeMessage = "Sua entrevista gerou algumas controvérsias nas redes sociais.";
+      timelineEvents = [{ slot: 1, type: 'POST_MATCH', choice: 'A', result: 'Entrevista polêmica' }];
+    }
+  } else {
+    narrative = "Você prefere evitar a imprensa e ir direto para o vestiário após o jogo.";
+    outcomeMessage = "Você evitou possíveis polêmicas, mas também perdeu uma oportunidade de se comunicar com os fãs.";
+    timelineEvents = [{ slot: 1, type: 'POST_MATCH', choice: 'B', result: 'Evitou entrevista' }];
+  }
+
+  return buildGameResponse(
+    narrative,
+    "Comemorar com a Equipe",
+    "Recuperação Individual",
+    timelineEvents,
+    currentTimeline,
+    'NEUTRO',
+    outcomeMessage,
+    undefined,
+    xpGain,
+    null,
+    undefined
+  );
+};
+
 const generateRandomEvent = (
   playerProfile: PlayerProfile,
   choice: 'A' | 'B',
@@ -339,6 +385,30 @@ const generateRandomEvent = (
   } else {
     return generateSponsorEvent(playerProfile, choice, currentTimeline);
   }
+};
+
+// New function to generate a sequence of events for a week
+const generateWeekEvents = (
+  playerProfile: PlayerProfile,
+  currentTimeline: TimelineEvent[]
+): GameResponse[] => {
+  // Generate 2 off-field events
+  const offFieldEvent1 = Math.random() < 0.5 
+    ? generateMediaEvent(playerProfile, Math.random() < 0.5 ? 'A' : 'B', currentTimeline)
+    : generateSponsorEvent(playerProfile, Math.random() < 0.5 ? 'A' : 'B', currentTimeline);
+  
+  const offFieldEvent2 = Math.random() < 0.5 
+    ? generateTrainingEvent(playerProfile, Math.random() < 0.5 ? 'A' : 'B', currentTimeline)
+    : generateMediaEvent(playerProfile, Math.random() < 0.5 ? 'A' : 'B', currentTimeline);
+  
+  // Generate 2 match day events
+  const matchEvent1 = generateMatchEvent(playerProfile, Math.random() < 0.5 ? 'A' : 'B', currentTimeline);
+  const matchEvent2 = generateMatchEvent(playerProfile, Math.random() < 0.5 ? 'A' : 'B', currentTimeline);
+  
+  // Generate 1 post-match event
+  const postMatchEvent = generatePostMatchEvent(playerProfile, Math.random() < 0.5 ? 'A' : 'B', currentTimeline);
+  
+  return [offFieldEvent1, offFieldEvent2, matchEvent1, matchEvent2, postMatchEvent];
 };
 
 export const gameService = {
@@ -379,7 +449,7 @@ export const gameService = {
         message: gameResponse.outcome.message
       },
       timeline: gameResponse.timeline,
-      matchStats: {
+      matchStats: gameResponse.matchStats || {
         goals: 0,
         assists: 0,
         rating: 4,
@@ -445,5 +515,29 @@ export const gameService = {
       null,
       undefined
     );
+  },
+  
+  // New function to start a new week with multiple events
+  startNewWeek: async (
+    playerProfile: PlayerProfile,
+    currentTimeline: TimelineEvent[]
+  ): Promise<GameResponse[]> => {
+    return generateWeekEvents(playerProfile, currentTimeline);
+  },
+  
+  // This will be the function called from GameScreen
+  makeChoice: async (
+    playerProfile: PlayerProfile,
+    choiceLog: Choice[],
+    choice: 'A' | 'B',
+    careerStats: any
+  ): Promise<GameResponse> => {
+    // Use the player's current timeline from the last choice
+    const currentTimeline = choiceLog.length > 0 && choiceLog[choiceLog.length - 1].timeline 
+      ? choiceLog[choiceLog.length - 1].timeline 
+      : generateInitialTimeline();
+    
+    return generateRandomEvent(playerProfile, choice, currentTimeline);
   }
 };
+

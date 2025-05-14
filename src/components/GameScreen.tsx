@@ -1,10 +1,10 @@
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { gameService } from '@/services/gameService';
-import { ArrowRight, History, Award } from 'lucide-react';
+import { ArrowRight, History, Award, Trophy, Football } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { PlayerProfile } from '@/lib/types';
+import { PlayerProfile, GameResponse } from '@/lib/types';
 import StatsBox from './StatsBox';
 
 const GameScreen = () => {
@@ -31,14 +31,75 @@ const GameScreen = () => {
   
   const { toast } = useToast();
   
+  const [weekEvents, setWeekEvents] = useState<GameResponse[]>([]);
+  const [currentEventIndex, setCurrentEventIndex] = useState(0);
+  const [isNewWeek, setIsNewWeek] = useState(false);
+  
   // Check if the game should end after 3 choices
   useEffect(() => {
-    if (choiceLog.length >= 3 && !gameEnded) {
+    if (choiceLog.length >= 3 && !gameEnded && !isNewWeek) {
       // Generate post-game summary
       generatePostGameSummary();
     }
-  }, [choiceLog.length, gameEnded]);
+  }, [choiceLog.length, gameEnded, isNewWeek]);
 
+  // Handle week events progression
+  useEffect(() => {
+    if (isNewWeek && weekEvents.length > 0 && currentEventIndex < weekEvents.length) {
+      const currentEvent = weekEvents[currentEventIndex];
+      setCurrentNarrative(currentEvent.narrative);
+      setNextOptions(currentEvent.nextEvent);
+      
+      // If there are match stats, update career stats
+      if (currentEvent.matchStats) {
+        updateCareerStats({
+          matches: 1,
+          goals: currentEvent.matchStats.goals,
+          assists: currentEvent.matchStats.assists,
+          keyDefenses: currentEvent.matchStats.keyDefenses
+        });
+        
+        // Show toast for match performance
+        toast({
+          title: "Desempenho na partida",
+          description: `${currentEvent.matchStats.goals} gols, ${currentEvent.matchStats.assists} assistências`,
+          variant: "default",
+          duration: 3000
+        });
+      }
+      
+      // If there is XP gain, add it
+      if (currentEvent.xpGain && currentEvent.xpGain > 0) {
+        addXp(currentEvent.xpGain);
+        
+        toast({
+          title: "Experiência Adquirida",
+          description: `+${currentEvent.xpGain} XP`,
+          variant: "default",
+          duration: 3000
+        });
+      }
+      
+      // Record the event in choice log
+      const newChoice = {
+        id: choiceLog.length,
+        event: `WEEK_EVENT_${currentEventIndex + 1}`,
+        choice: 'A', // Default choice for auto-generated events
+        timestamp: new Date().toISOString(),
+        narrative: currentEvent.narrative,
+        nextEvent: currentEvent.nextEvent,
+        outcome: currentEvent.outcome,
+        timeline: currentEvent.timeline,
+        xpGain: currentEvent.xpGain,
+        attributeFocus: currentEvent.attributeFocus,
+        matchStats: currentEvent.matchStats,
+        attributeImproved: currentEvent.attributeImproved
+      };
+      
+      addChoice(newChoice);
+    }
+  }, [isNewWeek, weekEvents, currentEventIndex]);
+  
   // Generate a summary for the post-game
   const generatePostGameSummary = async () => {
     if (!playerProfile) return;
@@ -170,7 +231,37 @@ const GameScreen = () => {
       const focus = chooseAttributeFocus(choiceText);
       setAttributeFocus(focus);
       
-      // Get next narrative based on choice
+      // If we're in week mode, handle differently
+      if (isNewWeek && weekEvents.length > 0) {
+        // Move to the next event in the week
+        if (currentEventIndex < weekEvents.length - 1) {
+          setCurrentEventIndex(currentEventIndex + 1);
+        } else {
+          // End of week reached
+          setIsNewWeek(false);
+          setWeekEvents([]);
+          setCurrentEventIndex(0);
+          
+          // Show week summary
+          setCurrentNarrative("<cyan>Fim da semana! Você passou por diversos eventos e jogos. Sua carreira continua evoluindo.</cyan>");
+          setNextOptions({
+            labelA: "Iniciar Nova Semana",
+            labelB: "Ver Estatísticas"
+          });
+        }
+        setLoading(false);
+        return;
+      }
+      
+      // For normal flow or starting new week
+      if (gameEnded && choiceText === "Iniciar Nova Semana") {
+        // Start a new week
+        startNewWeek();
+        setLoading(false);
+        return;
+      }
+      
+      // Normal choice flow
       const response = await gameService.makeChoice(playerProfile, [...choiceLog], choice, careerStats);
       
       // Calculate XP gain based on response
@@ -244,7 +335,7 @@ const GameScreen = () => {
       }
       
       // Check if this is the final choice (3rd choice)
-      if (choiceLog.length >= 2) { // Already made 2, this is the 3rd
+      if (choiceLog.length >= 2 && !isNewWeek) { // Already made 2, this is the 3rd
         setTimeout(() => {
           generatePostGameSummary();
         }, 1000);
@@ -260,6 +351,57 @@ const GameScreen = () => {
     } finally {
       setLoading(false);
     }
+  };
+  
+  // New function to start a new week
+  const startNewWeek = async () => {
+    if (!playerProfile) return;
+    
+    try {
+      setLoading(true);
+      
+      // Reset game ended state
+      endGame();
+      
+      // Generate a week's worth of events
+      const initialTimeline = choiceLog.length > 0 && choiceLog[choiceLog.length - 1].timeline 
+        ? choiceLog[choiceLog.length - 1].timeline 
+        : generateInitialTimeline();
+      
+      const events = await gameService.startNewWeek(playerProfile, initialTimeline);
+      
+      // Store the events to play through them
+      setWeekEvents(events);
+      setCurrentEventIndex(0);
+      setIsNewWeek(true);
+      
+      toast({
+        title: "Nova Semana",
+        description: "Uma nova semana começa na sua carreira!",
+        variant: "default",
+        duration: 3000
+      });
+      
+    } catch (error) {
+      console.error("Failed to start new week:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível iniciar nova semana.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Function to initialize a new timeline if needed
+  const generateInitialTimeline = () => {
+    return Array.from({ length: 52 }, (_, i) => ({
+      slot: i + 1,
+      type: 'WEEK',
+      choice: null,
+      result: null,
+    }));
   };
   
   // Choose a related training attribute based on choice
@@ -361,20 +503,17 @@ const GameScreen = () => {
     );
   };
 
-  // Render restart game button (shown after game ends)
-  const renderRestartButton = () => {
+  // Render "Start New Week" button (shown after game ends)
+  const renderStartNewWeekButton = () => {
     if (!gameEnded) return null;
 
     return (
       <div className="mt-8 text-center">
         <button
-          className="retro-button retro-button-primary w-full px-4 py-2"
-          onClick={() => {
-            // Reset game state and start a new game
-            window.location.reload();
-          }}
+          className="retro-button retro-button-primary w-full px-4 py-2 flex items-center justify-center"
+          onClick={startNewWeek}
         >
-          Iniciar Novo Jogo
+          <Football className="w-5 h-5 mr-2" /> Iniciar Nova Semana
         </button>
       </div>
     );
@@ -397,8 +536,8 @@ const GameScreen = () => {
       {/* Attribute Improvements */}
       {renderAttributeImprovements()}
       
-      {/* Choice Options - only show if game not ended */}
-      {nextOptions && !isLoading && !gameEnded && (
+      {/* Choice Options - only show if game not ended or we're in new week mode */}
+      {nextOptions && !isLoading && (!gameEnded || isNewWeek) && (
         <div className="grid grid-cols-1 gap-4 mb-8 mt-4">
           <button 
             className="retro-button w-full text-left flex items-center"
@@ -425,8 +564,8 @@ const GameScreen = () => {
         </div>
       )}
       
-      {/* Restart Game Button (only shows after game ends) */}
-      {renderRestartButton()}
+      {/* Start New Week Button (only shows after game ends) */}
+      {renderStartNewWeekButton()}
       
       {/* Navigation buttons */}
       <div className="flex justify-between mt-8">
