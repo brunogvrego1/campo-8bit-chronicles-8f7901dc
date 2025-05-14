@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { PlayerProfile, GameResponse, Choice, TimelineEvent } from "@/lib/types";
 
@@ -387,6 +386,30 @@ const generateRandomEvent = (
   }
 };
 
+// Fix the missing matchStats properties in the mouseScore function
+const mouseScore = (player: PlayerProfile) => {
+  return {
+    matchStats: {
+      goals: 0,  // Add goals property
+      assists: 0, // Add assists property  
+      rating: Math.floor(Math.random() * 3) + 7,
+      keyDefenses: Math.floor(Math.random() * 3)
+    },
+    xpGain,
+    attributeFocus
+  };
+};
+
+// Fix the missing matchStats properties in the generateRandomMatchStats function
+const generateRandomMatchStats = (playerProfile: PlayerProfile) => {
+  return {
+    goals: 0,  // Add goals property
+    assists: 0, // Add assists property
+    rating: Math.floor(Math.random() * 2) + 7,
+    keyDefenses: Math.floor(Math.random() * 2)
+  };
+};
+
 // New function to generate a sequence of events for a week
 const generateWeekEvents = (
   playerProfile: PlayerProfile,
@@ -540,4 +563,3 @@ export const gameService = {
     return generateRandomEvent(playerProfile, choice, currentTimeline);
   }
 };
-

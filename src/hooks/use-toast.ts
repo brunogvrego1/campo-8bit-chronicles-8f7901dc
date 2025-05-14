@@ -1,3 +1,4 @@
+
 import * as React from "react"
 
 import type {
@@ -6,7 +7,8 @@ import type {
 } from "@/components/ui/toast"
 
 const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
+// Change the timeout to null, meaning the toast will stay until manually dismissed
+const TOAST_REMOVE_DELAY = null 
 
 type ToasterToast = ToastProps & {
   id: string
@@ -60,15 +62,18 @@ const addToRemoveQueue = (toastId: string) => {
     return
   }
 
-  const timeout = setTimeout(() => {
-    toastTimeouts.delete(toastId)
-    dispatch({
-      type: "REMOVE_TOAST",
-      toastId: toastId,
-    })
-  }, TOAST_REMOVE_DELAY)
+  // Only set timeout if TOAST_REMOVE_DELAY is not null
+  if (TOAST_REMOVE_DELAY !== null) {
+    const timeout = setTimeout(() => {
+      toastTimeouts.delete(toastId)
+      dispatch({
+        type: "REMOVE_TOAST",
+        toastId: toastId,
+      })
+    }, TOAST_REMOVE_DELAY)
 
-  toastTimeouts.set(toastId, timeout)
+    toastTimeouts.set(toastId, timeout)
+  }
 }
 
 export const reducer = (state: State, action: Action): State => {

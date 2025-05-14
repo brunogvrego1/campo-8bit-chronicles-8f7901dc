@@ -1,8 +1,7 @@
-
 import { useEffect, useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { gameService } from '@/services/gameService';
-import { ArrowRight, History, Award, Trophy, Football } from 'lucide-react';
+import { ArrowRight, History, Award, Trophy, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PlayerProfile, GameResponse } from '@/lib/types';
 import StatsBox from './StatsBox';
@@ -63,8 +62,7 @@ const GameScreen = () => {
         toast({
           title: "Desempenho na partida",
           description: `${currentEvent.matchStats.goals} gols, ${currentEvent.matchStats.assists} assistências`,
-          variant: "default",
-          duration: 3000
+          variant: "default"
         });
       }
       
@@ -75,8 +73,7 @@ const GameScreen = () => {
         toast({
           title: "Experiência Adquirida",
           description: `+${currentEvent.xpGain} XP`,
-          variant: "default",
-          duration: 3000
+          variant: "default"
         });
       }
       
@@ -305,8 +302,7 @@ const GameScreen = () => {
         toast({
           title: `Escolha: ${choiceText}`,
           description: response.outcome.message,
-          variant: toastVariant,
-          duration: 4000
+          variant: toastVariant
         });
       }
       
@@ -317,8 +313,7 @@ const GameScreen = () => {
         toast({
           title: `Experiência Adquirida`,
           description: `+${xpGain} XP${responseFocus ? ` (Foco: ${getAttributeDisplayName(responseFocus)})` : ''}`,
-          variant: "default",
-          duration: 3000
+          variant: "default"
         });
       }
       
@@ -378,8 +373,7 @@ const GameScreen = () => {
       toast({
         title: "Nova Semana",
         description: "Uma nova semana começa na sua carreira!",
-        variant: "default",
-        duration: 3000
+        variant: "default"
       });
       
     } catch (error) {
