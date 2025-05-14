@@ -28,11 +28,11 @@ const toastVariants = cva(
   {
     variants: {
       variant: {
-        default: "border-cyan bg-black/90 text-cyan-DEFAULT border",
-        event: "border-yellow-400 bg-black/90 text-yellow-400 border",
-        destructive: "border-red-500 bg-black/90 text-red-400 border",
-        success: "border-green-500 bg-black/90 text-green-400 border",
-        magenta: "border-magenta-DEFAULT bg-black/90 text-magenta-DEFAULT border",
+        default: "border-cyan bg-black/90 text-cyan-DEFAULT border shadow-[0_0_10px_rgba(45,212,191,0.3)]",
+        event: "border-yellow-400 bg-black/90 text-yellow-400 border shadow-[0_0_10px_rgba(251,191,36,0.3)]",
+        destructive: "border-red-500 bg-black/90 text-red-400 border shadow-[0_0_10px_rgba(248,113,113,0.3)]",
+        success: "border-green-500 bg-black/90 text-green-400 border shadow-[0_0_10px_rgba(74,222,128,0.3)]",
+        magenta: "border-magenta-DEFAULT bg-black/90 text-magenta-DEFAULT border shadow-[0_0_10px_rgba(232,121,249,0.3)]",
       },
     },
     defaultVariants: {
