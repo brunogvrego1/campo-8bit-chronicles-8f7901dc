@@ -174,16 +174,31 @@ const GameScreen = () => {
       .sort((a, b) => b[1] - a[1])[0][0] as keyof PlayerProfile['attributes'];
   };
   
+  // Helper function to clean narrative text by removing option parts
+  const cleanNarrative = (text: string) => {
+    if (!text) return '';
+    
+    // Remove option indicators like "① Option text" or "② Option text" from the narrative
+    // Also remove "Comenta aí: 1 ou 2?" type patterns
+    return text
+      .replace(/[①②❶❷⓵⓶⓷1️⃣2️⃣]\s+.*?(?=(?:[①②❶❷⓵⓶⓷1️⃣2️⃣]|\n\n|$))/g, '')
+      .replace(/\*\*Comenta a[íi]:\s+\d+\s+ou\s+\d+\?\*\*.*?(?=\n|$)/g, '')
+      .replace(/^\s*\n/gm, '\n') // Remove empty lines
+      .trim();
+  };
+  
   // Helper function to colorize narrative text
   const formatNarrative = (text: string) => {
     if (!text) return '';
     
-    return text
+    const cleanedText = cleanNarrative(text);
+    
+    return cleanedText
       .replace(/<cyan>(.*?)<\/cyan>/g, '<span class="cyan-text">$1</span>')
       .replace(/<yellow>(.*?)<\/yellow>/g, '<span class="yellow-text">$1</span>')
       .replace(/<magenta>(.*?)<\/magenta>/g, '<span class="magenta-text">$1</span>')
-      .replace(/\\n/g, '<br/>') // Converter quebras de linha escapadas
-      .replace(/\n/g, '<br/>'); // Converter quebras de linha normais
+      .replace(/\\n/g, '<br/>') // Convert escaped line breaks
+      .replace(/\n/g, '<br/>'); // Convert line breaks
   };
   
   // Get attribute description based on value
@@ -222,6 +237,36 @@ const GameScreen = () => {
       defending: "Defesa"
     };
     return displayNames[attr] || attr;
+  };
+
+  // Extract options from the narrative if they're embedded there
+  const extractOptionsFromNarrative = (narrative: string) => {
+    if (!narrative) return null;
+    
+    // Look for option patterns like "① Option text" or "② Option text"
+    const optionRegex = /[①②❶❷⓵⓶⓷1️⃣2️⃣]\s+(.*?)(?=(?:[①②❶❷⓵⓶⓷1️⃣2️⃣]|\n\n|$))/g;
+    const matches = [...narrative.matchAll(optionRegex)];
+    
+    if (matches.length >= 2) {
+      return {
+        labelA: matches[0][1].trim(),
+        labelB: matches[1][1].trim()
+      };
+    }
+    
+    // Alternative pattern: "Comenta aí: 1 ou 2?"
+    const commentRegex = /\*\*Comenta a[íi]:\s+(\d+)\s+ou\s+(\d+)\?\*\*.+?$/gm;
+    const commentMatches = [...narrative.matchAll(commentRegex)];
+    
+    if (commentMatches.length > 0) {
+      // In this case we don't have explicit option texts, so we'll need to use defaults
+      return {
+        labelA: "Opção 1",
+        labelB: "Opção 2"
+      };
+    }
+    
+    return null;
   };
 
   // Make a choice
@@ -270,6 +315,14 @@ const GameScreen = () => {
       
       // Normal choice flow
       const response = await gameService.makeChoice(playerProfile, [...choiceLog], choice, careerStats);
+      
+      // Check if options are embedded in the narrative and extract them
+      const extractedOptions = extractOptionsFromNarrative(response.narrative);
+      if (extractedOptions) {
+        // Update the response to use the extracted options and clean the narrative
+        response.nextEvent = extractedOptions;
+        response.narrative = cleanNarrative(response.narrative);
+      }
       
       // Calculate XP gain based on response
       let xpGain = response.xpGain || 0;
