@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { NationalityOption, PositionOption, PlayerProfile } from '@/lib/types';
 import { gameService } from '@/services/gameService';
-import { getDeepSeekChatCompletion } from '@/services/deepseekService';
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from '@/hooks/use-toast';
 
 const nationalities: NationalityOption[] = [
@@ -44,54 +44,84 @@ const CreatePlayer = () => {
     setCreationStep(creationStep - 1);
   };
   
+  const getRandomTeamFromDatabase = async (countryCode: string) => {
+    setIsLoading(true);
+    try {
+      // Generate random threshold for team selection based on probability distribution
+      // 5% chance for elite teams (power_rating >= 16)
+      // 10% chance for good teams (power_rating >= 13 and < 16)
+      // 60% chance for mid-tier teams (power_rating >= 5 and < 13)
+      // 25% chance for small teams (power_rating < 5)
+      const randomValue = Math.random() * 100;
+      
+      let tierQuery;
+      if (randomValue <= 5) {
+        // 5% chance - elite teams
+        tierQuery = 'power_rating >= 16';
+      } else if (randomValue <= 15) {
+        // 10% chance - good teams
+        tierQuery = 'power_rating >= 13 AND power_rating < 16';
+      } else if (randomValue <= 75) {
+        // 60% chance - mid-tier teams
+        tierQuery = 'power_rating >= 5 AND power_rating < 13';
+      } else {
+        // 25% chance - small teams
+        tierQuery = 'power_rating < 5';
+      }
+      
+      const { data, error } = await supabase
+        .from('teams')
+        .select('name, division')
+        .eq('country_code', countryCode)
+        .filter(tierQuery)
+        .order('power_rating', { ascending: false })
+        .limit(10);
+      
+      if (error) {
+        console.error("Error fetching team:", error);
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        // Fallback to any team from that country if no team matches the tier criteria
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('teams')
+          .select('name, division')
+          .eq('country_code', countryCode)
+          .limit(10);
+          
+        if (fallbackError || !fallbackData || fallbackData.length === 0) {
+          throw new Error("No teams found for this country");
+        }
+        
+        // Select random team from fallback
+        const randomIndex = Math.floor(Math.random() * fallbackData.length);
+        return fallbackData[randomIndex].name;
+      }
+      
+      // Select a random team from the filtered results
+      const randomIndex = Math.floor(Math.random() * data.length);
+      return data[randomIndex].name;
+      
+    } catch (error) {
+      console.error("Failed to get random team:", error);
+      // Fallback
+      return `FC ${countryCode}`;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   const generateRandomClub = async () => {
     if (!nationality) return null;
     
-    setIsLoading(true);
     try {
-      const prompt = `Gere um nome de clube de futebol ${nationality.name} para um jogador iniciante.
-      
-      Distribua a qualidade do clube com estas probabilidades:
-      - 5% chance de ser um clube de elite (top tier)
-      - 10% chance de ser um clube bom (upper mid-tier)
-      - 60% chance de ser um clube de segunda divisão (lower mid-tier)
-      - 25% chance de ser um clube pequeno ou muito pequeno (bottom tier)
-      
-      Retorne APENAS o nome do clube em formato JSON sem nenhum texto adicional:
-      { "clubName": "Nome do Clube" }`;
-      
-      const response = await getDeepSeekChatCompletion([
-        { role: "system", content: "Você é um assistente que gera nomes de clubes de futebol aleatórios com base em probabilidades. Responda apenas em JSON conforme solicitado." },
-        { role: "user", content: prompt }
-      ]);
-      
-      let clubName;
-      try {
-        const jsonResponse = JSON.parse(response.content);
-        clubName = jsonResponse.clubName;
-      } catch (e) {
-        // Fallback in case parsing fails
-        const textContent = response.content;
-        const jsonMatch = textContent.match(/\{[^}]*\}/);
-        if (jsonMatch) {
-          try {
-            const extracted = JSON.parse(jsonMatch[0]);
-            clubName = extracted.clubName;
-          } catch {
-            clubName = textContent.replace(/["{}\n]/g, '').trim();
-          }
-        } else {
-          clubName = textContent.replace(/["{}\n]/g, '').trim();
-        }
-      }
-      
-      return clubName || `FC ${nationality.name}`;
+      const clubName = await getRandomTeamFromDatabase(nationality.code);
+      return clubName;
     } catch (error) {
       console.error("Error generating club:", error);
       // Fallback if API call fails
       return `${nationality.name} United`;
-    } finally {
-      setIsLoading(false);
     }
   };
   
@@ -109,6 +139,25 @@ const CreatePlayer = () => {
   const handleNationalitySelected = async (nat: NationalityOption) => {
     setNationality(nat);
     handleNext();
+  };
+  
+  const handleRefreshClub = async () => {
+    if (!nationality) return;
+    
+    setIsLoading(true);
+    try {
+      const club = await generateRandomClub();
+      setStartClub(club);
+    } catch (error) {
+      console.error("Failed to refresh club:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível buscar um novo clube. Tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   const handleStartGame = async () => {
@@ -338,6 +387,22 @@ const CreatePlayer = () => {
                 </div>
               </div>
             )}
+
+            {/* Refresh button */}
+            <button
+              className="retro-button retro-button-secondary w-full"
+              onClick={handleRefreshClub}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <span className="flex items-center justify-center">
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent mr-2"></span>
+                  PROCURANDO...
+                </span>
+              ) : (
+                "TENTAR OUTRO CLUBE"
+              )}
+            </button>
             
             <div className="flex w-full justify-between mt-8">
               <button 

@@ -9,10 +9,62 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      teams: {
+        Row: {
+          country_code: string
+          created_at: string
+          division: string
+          id: string
+          name: string
+          power_rating: number
+        }
+        Insert: {
+          country_code: string
+          created_at?: string
+          division: string
+          id?: string
+          name: string
+          power_rating: number
+        }
+        Update: {
+          country_code?: string
+          created_at?: string
+          division?: string
+          id?: string
+          name?: string
+          power_rating?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      team_tiers: {
+        Row: {
+          country_code: string | null
+          division: string | null
+          id: string | null
+          name: string | null
+          power_rating: number | null
+          tier: string | null
+        }
+        Insert: {
+          country_code?: string | null
+          division?: string | null
+          id?: string | null
+          name?: string | null
+          power_rating?: number | null
+          tier?: never
+        }
+        Update: {
+          country_code?: string | null
+          division?: string | null
+          id?: string | null
+          name?: string | null
+          power_rating?: number | null
+          tier?: never
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
