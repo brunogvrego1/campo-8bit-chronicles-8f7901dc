@@ -570,26 +570,33 @@ const generateRandomMatchStats = (playerProfile: PlayerProfile) => {
 };
 
 // New function to generate a sequence of events for a week
-const generateWeekEvents = (
+const generateWeekEvents = async (
   playerProfile: PlayerProfile,
   currentTimeline: TimelineEvent[]
-): GameResponse[] => {
-  // Generate 2 off-field events
-  const offFieldEvent1 = Math.random() < 0.5 
+): Promise<GameResponse[]> => {
+  // Generate promises for each event
+  const offFieldEvent1Promise = Math.random() < 0.5 
     ? generateMediaEvent(playerProfile, Math.random() < 0.5 ? 'A' : 'B', currentTimeline)
     : generateSponsorEvent(playerProfile, Math.random() < 0.5 ? 'A' : 'B', currentTimeline);
   
-  const offFieldEvent2 = Math.random() < 0.5 
+  const offFieldEvent2Promise = Math.random() < 0.5 
     ? generateTrainingEvent(playerProfile, Math.random() < 0.5 ? 'A' : 'B', currentTimeline)
     : generateMediaEvent(playerProfile, Math.random() < 0.5 ? 'A' : 'B', currentTimeline);
   
-  // Generate 2 match day events
-  const matchEvent1 = generateMatchEvent(playerProfile, Math.random() < 0.5 ? 'A' : 'B', currentTimeline);
-  const matchEvent2 = generateMatchEvent(playerProfile, Math.random() < 0.5 ? 'A' : 'B', currentTimeline);
+  const matchEvent1Promise = generateMatchEvent(playerProfile, Math.random() < 0.5 ? 'A' : 'B', currentTimeline);
+  const matchEvent2Promise = generateMatchEvent(playerProfile, Math.random() < 0.5 ? 'A' : 'B', currentTimeline);
+  const postMatchEventPromise = generatePostMatchEvent(playerProfile, Math.random() < 0.5 ? 'A' : 'B', currentTimeline);
   
-  // Generate 1 post-match event
-  const postMatchEvent = generatePostMatchEvent(playerProfile, Math.random() < 0.5 ? 'A' : 'B', currentTimeline);
+  // Await all promises to resolve them into actual GameResponse objects
+  const [offFieldEvent1, offFieldEvent2, matchEvent1, matchEvent2, postMatchEvent] = await Promise.all([
+    offFieldEvent1Promise,
+    offFieldEvent2Promise,
+    matchEvent1Promise,
+    matchEvent2Promise,
+    postMatchEventPromise
+  ]);
   
+  // Return the array of resolved GameResponse objects
   return [offFieldEvent1, offFieldEvent2, matchEvent1, matchEvent2, postMatchEvent];
 };
 
@@ -751,7 +758,7 @@ export const gameService = {
     playerProfile: PlayerProfile,
     currentTimeline: TimelineEvent[]
   ): Promise<GameResponse[]> => {
-    return generateWeekEvents(playerProfile, currentTimeline);
+    return await generateWeekEvents(playerProfile, currentTimeline);
   },
   
   // This will be the function called from GameScreen
