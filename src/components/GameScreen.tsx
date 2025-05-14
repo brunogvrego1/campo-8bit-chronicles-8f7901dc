@@ -52,7 +52,8 @@ const GameScreen = () => {
         timestamp: new Date().toISOString(),
         narrative: currentNarrative, // Save current narrative (before the choice)
         nextEvent: nextOptions, // Save the options that were presented
-        outcome: response.outcome // Save outcome of the choice
+        outcome: response.outcome, // Save outcome of the choice
+        timeline: response.timeline // Save the timeline
       };
       
       addChoice(newChoice);
@@ -87,6 +88,42 @@ const GameScreen = () => {
     }
   };
   
+  // Display timeline information
+  const renderTimeline = () => {
+    if (choiceLog.length === 0 || !choiceLog[choiceLog.length - 1].timeline) {
+      return null;
+    }
+    
+    const timeline = choiceLog[choiceLog.length - 1].timeline;
+    if (!timeline) return null;
+    
+    return (
+      <div className="mt-4 p-2 border border-gray-600 rounded text-xs text-gray-300">
+        <h4 className="font-bold mb-1">Cronologia do Dia:</h4>
+        {timeline.map((event, index) => {
+          let statusIcon = "⦿"; // pending
+          if (event.result) {
+            statusIcon = event.result === "POSITIVO" ? "✓" : 
+                         event.result === "NEGATIVO" ? "✗" : "•";
+          }
+          
+          const periodName = 
+            event.slot === 1 ? "Manhã" :
+            event.slot === 2 ? "Tarde" :
+            event.slot === 3 ? "Pré-jogo" :
+            "Partida";
+          
+          return (
+            <div key={index} className="flex items-center space-x-1">
+              <span>{statusIcon}</span>
+              <span>{periodName} – {event.type}{event.subType ? ` (${event.subType})` : ''}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+  
   return (
     <div className="w-full max-w-md mx-auto px-4 py-6">
       {/* Narrative Section */}
@@ -95,9 +132,12 @@ const GameScreen = () => {
         dangerouslySetInnerHTML={{ __html: formatNarrative(currentNarrative) }}
       />
       
+      {/* Timeline information */}
+      {renderTimeline()}
+      
       {/* Choice Options */}
       {nextOptions && !isLoading && (
-        <div className="grid grid-cols-1 gap-4 mb-8">
+        <div className="grid grid-cols-1 gap-4 mb-8 mt-4">
           <button 
             className="retro-button w-full text-left flex items-center"
             onClick={() => handleChoice('A')}

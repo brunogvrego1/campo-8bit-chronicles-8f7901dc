@@ -8,6 +8,14 @@ export interface PlayerProfile {
   createdAt: string;
 }
 
+export interface TimelineEvent {
+  slot: number;
+  type: string;
+  subType?: string;
+  choice: string | null;
+  result: string | null;
+}
+
 export interface Choice {
   id: number;
   event: string;
@@ -22,6 +30,7 @@ export interface Choice {
     type: "POSITIVO" | "NEGATIVO" | "NEUTRO" | "DECISIVO" | "ESTRATÉGICO";
     message: string;
   };
+  timeline?: TimelineEvent[];
 }
 
 export interface GameState {
@@ -61,4 +70,5 @@ export interface GameResponse {
     type: "POSITIVO" | "NEGATIVO" | "NEUTRO" | "DECISIVO" | "ESTRATÉGICO";
     message: string;
   };
+  timeline?: TimelineEvent[];
 }

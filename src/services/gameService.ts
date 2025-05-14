@@ -1,7 +1,8 @@
 
-import { PlayerProfile, Choice, GameResponse } from '@/lib/types';
+import { PlayerProfile, Choice, GameResponse, TimelineEvent } from '@/lib/types';
 import OpenAI from 'openai';
 import { supabase } from "@/integrations/supabase/client";
+import { getDeepSeekChatCompletion } from './deepseekService';
 
 // Initialize OpenAI client
 // Note: In production, API keys should be stored securely, not in frontend code
@@ -27,24 +28,75 @@ export const isOpenAIInitialized = (): boolean => {
   return openai !== null || localStorage.getItem('openai_initialized') === 'true';
 };
 
-// Call DeepSeek API through Supabase Edge Function
-const callDeepSeekAI = async (messages: any[]) => {
-  try {
-    const { data, error } = await supabase.functions.invoke("deepseek-chat", {
-      body: {
-        messages,
-      },
-    });
-
-    if (error) {
-      console.error("DeepSeek API error:", error);
-      throw new Error(`DeepSeek API error: ${error.message}`);
+// Generate a timeline for the game day
+const generateDayTimeline = (): TimelineEvent[] => {
+  // Basic timeline structure following the 4-block logic
+  return [
+    { 
+      slot: 1, 
+      type: "TREINO_TECNICO", 
+      choice: null, 
+      result: null 
+    },
+    { 
+      slot: 2, 
+      type: Math.random() > 0.6 ? "COLETIVA_IMPRENSA" : "LIVE_REDES", 
+      choice: null, 
+      result: null 
+    },
+    { 
+      slot: 3, 
+      type: "TALK_LOCKERROOM", 
+      choice: null, 
+      result: null 
+    },
+    { 
+      slot: 4, 
+      type: "MICRO", 
+      subType: "ATAQUE_FRANCO", 
+      choice: null, 
+      result: null 
     }
+  ];
+};
 
-    return data;
-  } catch (error) {
-    console.error("Error calling DeepSeek service:", error);
-    throw error;
+// Format the timeline for the DeepSeek prompt
+const formatTimelineForPrompt = (timeline: TimelineEvent[], currentChoices: Choice[]): string => {
+  // Update the timeline with choices that have been made
+  if (currentChoices.length > 0) {
+    for (let i = 0; i < Math.min(currentChoices.length, timeline.length); i++) {
+      const choice = currentChoices[i];
+      if (choice && choice.choice) {
+        timeline[i].choice = choice.choice;
+        timeline[i].result = choice.outcome?.type || "NEUTRO";
+      }
+    }
+  }
+  
+  // Format the timeline for the prompt
+  let timelinePrompt = "CRONOLOGIA_DIA\n";
+  timeline.forEach((event, index) => {
+    const choiceText = event.choice ? 
+      ` (${event.choice === 'A' ? "opção A" : "opção B"})` : "";
+    const statusMarker = event.result ? "✓ " : "";
+    const pendingText = event.result ? "" : " → pendente";
+    
+    timelinePrompt += `${index + 1}) ${statusMarker}${getPeriodName(event.slot)} – ${event.type}${
+      event.subType ? " (" + event.subType + ")" : ""
+    }${choiceText}${pendingText}\n`;
+  });
+  timelinePrompt += "###\n";
+  
+  return timelinePrompt;
+};
+
+const getPeriodName = (slot: number): string => {
+  switch (slot) {
+    case 1: return "Manhã";
+    case 2: return "Tarde";
+    case 3: return "Pré-jogo";
+    case 4: return "Partida";
+    default: return "Período";
   }
 };
 
@@ -53,28 +105,49 @@ export const gameService = {
     console.log("Starting game with profile:", playerProfile);
     
     try {
+      // Generate initial timeline for the day
+      const timeline = generateDayTimeline();
+      
+      // Format player attributes (mock values for now)
+      const playerAttributes = {
+        Tec: 7,
+        Tat: 5,
+        Fis: 6,
+        Men: 5,
+        Car: 6
+      };
+      
+      // Format the timeline for the prompt
+      const timelinePrompt = formatTimelineForPrompt(timeline, []);
+      
       // Use DeepSeek to generate the initial narrative
-      const data = await callDeepSeekAI([
+      const data = await getDeepSeekChatCompletion([
         {
           role: "system", 
-          content: `You are a football career simulator game. Create engaging narratives for a player's journey. 
-                   You should output ONLY in Portuguese. Format your responses like this:
+          content: `Você é um narrador de um simulador de carreira de futebol. Crie narrativas envolventes para a jornada de um jogador.
+                   Você deve retornar APENAS em Português. Formate suas respostas como JSON:
                    {
-                     "narrative": "Story text here",
+                     "narrative": "Texto da narrativa aqui",
                      "options": {
-                       "A": "Option A text",
-                       "B": "Option B text"
+                       "A": "Texto da opção A",
+                       "B": "Texto da opção B"
                      }
                    }`
         },
         {
           role: "user", 
-          content: `Generate the introduction for a football player career. Player details:
-                   Name: ${playerProfile.name}
-                   Age: ${playerProfile.age}
-                   Position: ${playerProfile.position}
-                   Nationality: ${getNationalityAdjective(playerProfile.nationality)}
-                   Starting Club: ${playerProfile.startClub}`
+          content: `MICRO_PRE
+###
+${timelinePrompt}
+Perfil
+Nome: ${playerProfile.name} • ${playerProfile.age} anos • ${playerProfile.nationality} • ${playerProfile.position} • ${playerProfile.startClub}
+Atributos: Téc ${playerAttributes.Tec}  Tat ${playerAttributes.Tat}  Fís ${playerAttributes.Fis}  Men ${playerAttributes.Men}  Car ${playerAttributes.Car}
+###
+Tarefa
+Como narrador, descreva o primeiro treino técnico da manhã do jogador no clube
+e ofereça 2 opções: "Focar finalização" ou "Focar passe".
+Devolva JSON { "narrative": "...", "options": { "A": "...", "B": "..." } } seguido da narrativa curta.
+Mantenha a narrativa envolvente e fluida, em um tom dramático e imersivo.`
         }
       ]);
       
@@ -94,7 +167,8 @@ export const gameService = {
             labelA: "Treinar passe",
             labelB: "Treinar finalização"
           },
-          outcome: null
+          outcome: null,
+          timeline: timeline
         };
       }
       
@@ -107,7 +181,8 @@ export const gameService = {
           labelA: parsedResponse.options.A,
           labelB: parsedResponse.options.B
         },
-        outcome: null
+        outcome: null,
+        timeline: timeline
       };
       
     } catch (error) {
@@ -120,7 +195,8 @@ export const gameService = {
           labelA: "Treinar passe",
           labelB: "Treinar finalização"
         },
-        outcome: null
+        outcome: null,
+        timeline: generateDayTimeline()
       };
     }
   },
@@ -129,56 +205,115 @@ export const gameService = {
     console.log("Making choice:", choice);
     
     try {
-      // Get the last chosen option and its text
+      // Get the last choice and its details
       const lastChoice = choiceLog.length > 0 ? choiceLog[choiceLog.length - 1] : null;
-      const lastChoiceText = lastChoice ? (lastChoice.choice === 'A' ? lastChoice.nextEvent?.labelA : lastChoice.nextEvent?.labelB) : "Initial choice";
-      const lastNarrative = lastChoice ? lastChoice.narrative : "Game start";
       
-      // Prepare history summary
-      const historyText = choiceLog.map(log => {
-        const choiceText = log.choice === 'A' ? log.nextEvent?.labelA : log.nextEvent?.labelB;
-        return `Player chose: ${choiceText}. Outcome: ${log.outcome?.type || 'NONE'} - ${log.outcome?.message || 'No outcome'}`;
-      }).join("\n");
+      // Generate or retrieve the timeline
+      let timeline = lastChoice?.timeline || generateDayTimeline();
+      
+      // Determine current slot based on choices made
+      const currentSlot = Math.min(choiceLog.length + 1, 4);
+      
+      // Format player attributes (mock values for now)
+      const playerAttributes = {
+        Tec: 7,
+        Tat: 5,
+        Fis: 6,
+        Men: 5,
+        Car: 6
+      };
+      
+      // Determine what type of event to show based on the current slot
+      let eventType, promptTask;
+      
+      switch (currentSlot) {
+        case 1:
+          eventType = "TREINO_TECNICO";
+          promptTask = `Como narrador, descreva o treino técnico da manhã
+e ofereça 2 opções diferentes relacionadas ao treino técnico.`;
+          break;
+        case 2:
+          eventType = timeline[1].type;
+          if (eventType === "COLETIVA_IMPRENSA") {
+            promptTask = `Como narrador, descreva a coletiva de imprensa da tarde
+e ofereça 2 opções de como o jogador pode se comportar durante a coletiva.`;
+          } else {
+            promptTask = `Como narrador, descreva a live nas redes sociais da tarde
+e ofereça 2 opções de conteúdo que o jogador pode compartilhar com seus seguidores.`;
+          }
+          break;
+        case 3:
+          eventType = "TALK_LOCKERROOM";
+          promptTask = `Como narrador, descreva o momento pré-jogo no vestiário
+e ofereça 2 opções de como o jogador pode se preparar mentalmente para a partida.`;
+          break;
+        case 4:
+          eventType = "MICRO";
+          promptTask = `Como narrador, descreva o primeiro lance importante do jogo
+e ofereça 2 opções táticas para o jogador durante este momento crucial.`;
+          break;
+        default:
+          eventType = "POS_JOGO";
+          promptTask = `Como narrador, descreva o resultado da partida e a reação da torcida
+e ofereça 2 opções de como o jogador pode reagir após o jogo.`;
+      }
+      
+      // Update the timeline with the most recent choice
+      if (lastChoice && lastChoice.choice) {
+        const slotIndex = Math.max(0, currentSlot - 2); // Current slot - 1 (for 0-indexing) - 1 (for previous choice)
+        if (timeline[slotIndex]) {
+          timeline[slotIndex].choice = lastChoice.choice;
+          timeline[slotIndex].result = lastChoice.outcome?.type || "NEUTRO";
+        }
+      }
+      
+      // Format the timeline for the prompt
+      const timelinePrompt = formatTimelineForPrompt(timeline, choiceLog);
       
       // Use DeepSeek to generate the next part of the narrative
-      const data = await callDeepSeekAI([
+      const data = await getDeepSeekChatCompletion([
         {
           role: "system", 
-          content: `You are a football career simulator game. Create engaging narratives based on player choices.
-                   Output ONLY in Portuguese. Format responses like this:
+          content: `Você é um narrador de um simulador de carreira de futebol. Crie narrativas envolventes e dramáticas baseadas nas escolhas do jogador.
+                   Retorne APENAS em Português. Formate suas respostas como JSON:
                    {
-                     "narrative": "Story text based on the choice",
+                     "narrative": "Texto da narrativa baseado na escolha",
                      "options": {
-                       "A": "Next option A",
-                       "B": "Next option B"
+                       "A": "Próxima opção A",
+                       "B": "Próxima opção B"
                      },
                      "outcome": {
-                       "type": "OUTCOME_TYPE",
-                       "message": "Brief outcome message"
+                       "type": "TIPO_RESULTADO",
+                       "message": "Mensagem breve sobre o resultado"
                      }
                    }
                    
-                   OUTCOME_TYPE must be one of: "POSITIVO", "NEGATIVO", "NEUTRO", "DECISIVO", or "ESTRATÉGICO".
-                   Make the outcome appropriate for the choice made.`
+                   TIPO_RESULTADO deve ser um dos: "POSITIVO", "NEGATIVO", "NEUTRO", "DECISIVO", ou "ESTRATÉGICO".
+                   Faça o resultado apropriado para a escolha feita.
+                   Nunca repita opções já oferecidas anteriormente. Sempre ofereça escolhas novas e criativas.
+                   Mantenha a narrativa envolvente e fluida, em um tom dramático e imersivo.`
         },
         {
           role: "user", 
-          content: `Player Profile:
-                   Name: ${playerProfile.name}
-                   Age: ${playerProfile.age}
-                   Position: ${playerProfile.position}
-                   Nationality: ${getNationalityAdjective(playerProfile.nationality)}
-                   Club: ${playerProfile.startClub}
-                   
-                   Previous game history:
-                   ${historyText}
-                   
-                   Current narrative:
-                   ${lastNarrative}
-                   
-                   Player chose: ${choice === 'A' ? 'Option A' : 'Option B'} - "${choice === 'A' ? lastChoice?.nextEvent?.labelA : lastChoice?.nextEvent?.labelB}"
-                   
-                   Generate the next part of the narrative, options, and outcome.`
+          content: `MICRO_PRE
+###
+${timelinePrompt}
+Perfil
+Nome: ${playerProfile.name} • ${playerProfile.age} anos • ${getNationalityAdjective(playerProfile.nationality)} • ${playerProfile.position} • ${playerProfile.startClub}
+Atributos: Téc ${playerAttributes.Tec}  Tat ${playerAttributes.Tat}  Fís ${playerAttributes.Fis}  Men ${playerAttributes.Men}  Car ${playerAttributes.Car}
+###
+Histórico de escolhas anteriores:
+${choiceLog.map((log, idx) => {
+  const choiceText = log.choice === 'A' ? log.nextEvent?.labelA : log.nextEvent?.labelB;
+  return `Escolha ${idx+1}: "${choiceText}" - Resultado: ${log.outcome?.type || 'NEUTRO'}`;
+}).join('\n')}
+
+Escolha atual: ${choice === 'A' ? 'Opção A' : 'Opção B'} - "${choice === 'A' ? lastChoice?.nextEvent?.labelA : lastChoice?.nextEvent?.labelB}"
+
+###
+Tarefa
+${promptTask}
+Devolva JSON { "narrative": "...", "options": { "A": "...", "B": "..." }, "outcome": { "type": "...", "message": "..." } }`
         }
       ]);
       
@@ -201,7 +336,8 @@ export const gameService = {
           outcome: {
             type: "NEUTRO" as const,
             message: "O treino continua normalmente"
-          }
+          },
+          timeline: timeline
         };
       }
       
@@ -227,6 +363,15 @@ export const gameService = {
         formattedNarrative = `<cyan>${formattedNarrative}</cyan>`;
       }
       
+      // Move to the next slot in the timeline
+      if (currentSlot <= timeline.length) {
+        timeline[currentSlot - 1] = {
+          ...timeline[currentSlot - 1],
+          choice: null,
+          result: null
+        };
+      }
+      
       return {
         narrative: formattedNarrative,
         nextEvent: {
@@ -236,7 +381,8 @@ export const gameService = {
         outcome: {
           type: outcomeType as "POSITIVO" | "NEGATIVO" | "NEUTRO" | "DECISIVO" | "ESTRATÉGICO",
           message: parsedResponse.outcome?.message || "O jogo continua"
-        }
+        },
+        timeline: timeline
       };
       
     } catch (error) {
@@ -252,7 +398,8 @@ export const gameService = {
         outcome: {
           type: "NEUTRO" as const,
           message: "Treinamento em andamento"
-        }
+        },
+        timeline: generateDayTimeline()
       };
     }
   }
