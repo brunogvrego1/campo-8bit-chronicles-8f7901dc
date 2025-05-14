@@ -1,3 +1,4 @@
+
 import { PlayerProfile, Choice, GameResponse } from '@/lib/types';
 import OpenAI from 'openai';
 
