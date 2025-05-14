@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { gameService } from '@/services/gameService';
 import { ArrowRight, History, Award } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { PlayerProfile } from '@/lib/types';
 import StatsBox from './StatsBox';
 
@@ -124,61 +124,14 @@ const GameScreen = () => {
       // Get next narrative based on choice
       const response = await gameService.makeChoice(playerProfile, [...choiceLog], choice, careerStats);
       
-      // Calculate XP gain based on choice and slot
-      let xpGain = 0;
-      const currentSlot = choiceLog.length % 4;
+      // Calculate XP gain based on response
+      let xpGain = response.xpGain || 0;
       
-      // Slot 1: Training - Base 3 XP
-      if (currentSlot === 0) {
-        xpGain = 3;
-      } 
-      // Slot 2: Afternoon event
-      else if (currentSlot === 1) {
-        // Live gives +1 XP, Press conference gives 0
-        const isLive = response.timeline?.[1]?.type === "LIVE_REDES";
-        xpGain = isLive ? 1 : 0;
-        
-        // Update followers based on charisma and random factor for social media events
-        if (isLive) {
-          const charismaBoost = playerProfile.attributes.charisma * 10;
-          const randomFactor = Math.floor(Math.random() * 50); // Random 0-50
-          updateCareerStats({ followers: charismaBoost + randomFactor });
-          
-          // Notify the user
-          toast({
-            title: "Redes Sociais",
-            description: `+${charismaBoost + randomFactor} seguidores`,
-            duration: 3000
-          });
-        }
+      // Use the attribute focus from the response if available
+      const responseFocus = response.attributeFocus || focus;
+      if (responseFocus) {
+        setAttributeFocus(responseFocus);
       }
-      // Slot 3-4: Match day events
-      else {
-        // Match performance XP based on narrative rating (extracted from outcome)
-        const matchRating = response.matchStats?.rating || 0;
-        xpGain = matchRating * 2;
-        
-        // Additional XP for goals/assists
-        if (response.matchStats?.goals && response.matchStats.goals > 0) {
-          xpGain += 4 * response.matchStats.goals;
-        }
-        if (response.matchStats?.assists && response.matchStats.assists > 0) {
-          xpGain += 3 * response.matchStats.assists;
-        }
-        
-        // Update career stats for match performance
-        const statsUpdate = {
-          matches: currentSlot === 3 ? 1 : 0, // Only count once per match (on first match action)
-          goals: response.matchStats?.goals || 0,
-          assists: response.matchStats?.assists || 0,
-          keyDefenses: response.matchStats?.keyDefenses || 0
-        };
-        
-        updateCareerStats(statsUpdate);
-      }
-      
-      // Add XP to the pool
-      addXp(xpGain);
       
       // Record choice in log with narrative, outcome, and XP
       const newChoice = {
@@ -191,8 +144,9 @@ const GameScreen = () => {
         outcome: response.outcome, // Save outcome of the choice
         timeline: response.timeline, // Save the timeline
         xpGain, // Save the XP gained from this choice
-        attributeFocus: focus, // Save the attribute focus
-        matchStats: response.matchStats // Save match stats if any
+        attributeFocus: responseFocus, // Save the attribute focus
+        matchStats: response.matchStats, // Save match stats if any
+        attributeImproved: response.attributeImproved // Save attribute improvement if any
       };
       
       addChoice(newChoice);
@@ -205,7 +159,8 @@ const GameScreen = () => {
       if (response.outcome) {
         const toastVariant = 
           response.outcome.type === 'POSITIVO' ? 'default' : 
-          response.outcome.type === 'NEGATIVO' ? 'destructive' : 'default';
+          response.outcome.type === 'NEGATIVO' ? 'destructive' : 
+          response.outcome.type === 'DECISIVO' ? 'default' : 'default';
         
         toast({
           title: `Escolha: ${choiceText}`,
@@ -215,14 +170,46 @@ const GameScreen = () => {
         });
       }
       
-      // If XP gain, show XP toast
+      // Add XP to the pool
       if (xpGain > 0) {
+        addXp(xpGain);
+        
         toast({
           title: `Experiência Adquirida`,
-          description: `+${xpGain} XP${focus ? ` (Foco: ${getAttributeDisplayName(focus)})` : ''}`,
+          description: `+${xpGain} XP${responseFocus ? ` (Foco: ${getAttributeDisplayName(responseFocus)})` : ''}`,
           variant: "default",
           duration: 3000
         });
+      }
+      
+      // Update career stats for match performance
+      const currentSlot = choiceLog.length % 4;
+      if (currentSlot >= 2 && response.matchStats) { // Slots 3-4: Match day events
+        const statsUpdate = {
+          matches: currentSlot === 2 ? 1 : 0, // Only count once per match (on first match action)
+          goals: response.matchStats?.goals || 0,
+          assists: response.matchStats?.assists || 0,
+          keyDefenses: response.matchStats?.keyDefenses || 0
+        };
+        
+        updateCareerStats(statsUpdate);
+      } else if (currentSlot === 1) { // Slot 2: Social media events
+        // Check if it's a social media event
+        const isLive = response.timeline?.[1]?.type === "LIVE_REDES";
+        
+        // Update followers based on charisma and random factor for social media events
+        if (isLive && playerProfile) {
+          const charismaBoost = playerProfile.attributes.charisma * 10;
+          const randomFactor = Math.floor(Math.random() * 50); // Random 0-50
+          updateCareerStats({ followers: charismaBoost + randomFactor });
+          
+          // Notify the user
+          toast({
+            title: "Redes Sociais",
+            description: `+${charismaBoost + randomFactor} seguidores`,
+            duration: 3000
+          });
+        }
       }
       
     } catch (error) {

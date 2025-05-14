@@ -1,4 +1,3 @@
-
 import { PlayerProfile, Choice, GameResponse, TimelineEvent, PlayerStats } from '@/lib/types';
 import OpenAI from 'openai';
 import { supabase } from "@/integrations/supabase/client";
@@ -173,43 +172,43 @@ const getClubContext = (clubName: string): string => {
     "Real Madrid": {
       tradition: "maior campeão europeu, conhecido como 'Los Blancos'",
       fans: "torcida conhecida como 'Madridistas'",
-      rivals: "Barcelona e Atlético de Madrid",
+      rivals: "Barcelona y Atlético de Madrid",
       league: "La Liga espanhola"
     },
     "FC Barcelona": {
       tradition: "clube catalão com filosofia 'Més que un club'",
       fans: "torcida conhecida como 'Culés'",
-      rivals: "Real Madrid e Espanyol",
+      rivals: "Real Madrid y Espanyol",
       league: "La Liga espanhola"
     },
     "Bayern Munich": {
       tradition: "maior clube alemão, dominante na Bundesliga",
       fans: "torcida organizada e orgulhosa",
-      rivals: "Borussia Dortmund e Schalke 04",
+      rivals: "Borussia Dortmund y Schalke 04",
       league: "Bundesliga alemã"
     },
     "Paris Saint-Germain": {
       tradition: "clube em ascensão europeia após investimentos qatari",
       fans: "torcida parisiense empolgada",
-      rivals: "Olympique de Marseille e Lyon",
+      rivals: "Olympique de Marseille y Lyon",
       league: "Ligue 1 francesa"
     },
     "Manchester City": {
       tradition: "clube tradicional transformado após investimentos árabes",
       fans: "torcida crescente global",
-      rivals: "Manchester United e Liverpool",
+      rivals: "Manchester United y Liverpool",
       league: "Premier League inglesa"
     },
     "Liverpool": {
       tradition: "clube histórico inglês com tradição europeia",
       fans: "torcida apaixonada que canta 'You'll Never Walk Alone'",
-      rivals: "Manchester United e Everton",
+      rivals: "Manchester United y Everton",
       league: "Premier League inglesa"
     },
     "Juventus": {
       tradition: "maior campeão italiano, conhecido como 'A Velha Senhora'",
       fans: "torcida conhecida como 'tifosi bianconeri'",
-      rivals: "Inter de Milão e Milan",
+      rivals: "Inter de Milão y Milan",
       league: "Serie A italiana"
     }
   };
@@ -287,6 +286,125 @@ const getEmotionalContext = (choices: Choice[]): string => {
   }
 };
 
+// Calculate success probability based on player attributes and choice difficulty
+const calculateSuccessProbability = (
+  playerProfile: PlayerProfile,
+  choiceRiskLevel: 'low' | 'medium' | 'high',
+  relevantAttribute: keyof PlayerProfile['attributes']
+): number => {
+  // Get the relevant attribute value
+  const attributeValue = playerProfile.attributes[relevantAttribute];
+  
+  // Base probabilities based on risk level
+  const baseProbabilities = {
+    low: 0.8,    // Low risk has high base success chance
+    medium: 0.6, // Medium risk has moderate base success chance
+    high: 0.4    // High risk has low base success chance
+  };
+  
+  // Attribute influence factor (0-20 scale)
+  // At attribute 10, no modification to base probability
+  const attributeFactor = (attributeValue - 10) * 0.03;
+  
+  // Calculate final probability (clamped between 0.05 and 0.95)
+  const probability = Math.min(0.95, Math.max(0.05, baseProbabilities[choiceRiskLevel] + attributeFactor));
+  
+  return probability;
+};
+
+// Determine reward multiplier based on risk level
+const getRewardMultiplier = (riskLevel: 'low' | 'medium' | 'high'): number => {
+  switch (riskLevel) {
+    case 'low': return 1.0;    // Normal rewards
+    case 'medium': return 1.5; // 50% more rewards
+    case 'high': return 2.5;   // 150% more rewards
+    default: return 1.0;
+  }
+};
+
+// Analyze option text to determine risk level
+const determineRiskLevel = (optionText: string): 'low' | 'medium' | 'high' => {
+  const lowRiskKeywords = ['seguro', 'cauteloso', 'simples', 'básico', 'padrão', 'técnico', 'seguir', 'conservador'];
+  const highRiskKeywords = ['arriscado', 'arriscar', 'ousado', 'ousar', 'provocar', 'desafiar', 'improvisar', 'criativo', 'imprudente', 'agressivo'];
+  
+  const optionLower = optionText.toLowerCase();
+  
+  // Check for high risk keywords
+  if (highRiskKeywords.some(keyword => optionLower.includes(keyword))) {
+    return 'high';
+  }
+  
+  // Check for low risk keywords
+  if (lowRiskKeywords.some(keyword => optionLower.includes(keyword))) {
+    return 'low';
+  }
+  
+  // Default to medium risk
+  return 'medium';
+};
+
+// Determine most relevant attribute for a given option
+const determineRelevantAttribute = (
+  optionText: string, 
+  currentSlot: number
+): keyof PlayerProfile['attributes'] => {
+  // Specific keyword mapping to attributes
+  const attributeKeywords: Record<string, keyof PlayerProfile['attributes']> = {
+    // Physical attributes
+    'velocidade': 'speed',
+    'correr': 'speed',
+    'rápido': 'speed',
+    'físico': 'physical',
+    'força': 'physical',
+    'resistência': 'physical',
+    'contato': 'physical',
+    
+    // Technical attributes
+    'finalização': 'shooting',
+    'finalizar': 'shooting',
+    'chute': 'shooting',
+    'chutar': 'shooting',
+    'cabeceio': 'heading',
+    'cabeça': 'heading',
+    'cabecear': 'heading',
+    'passe': 'passing',
+    'passar': 'passing',
+    'toque': 'passing',
+    'defesa': 'defense',
+    'defender': 'defense',
+    'marcar': 'defense',
+    
+    // Social attributes
+    'falar': 'charisma',
+    'entrevista': 'charisma',
+    'mídia': 'charisma',
+    'imprensa': 'charisma',
+    'torcida': 'charisma',
+    'comunicar': 'charisma',
+    'responder': 'charisma'
+  };
+  
+  // Default attributes for different game slots
+  const slotDefaultAttributes: Record<number, keyof PlayerProfile['attributes']> = {
+    1: 'physical',     // Training
+    2: 'charisma',     // Press conference or social media
+    3: 'charisma',     // Locker room
+    4: 'shooting'      // Match action
+  };
+  
+  const optionLower = optionText.toLowerCase();
+  
+  // Check if any keyword matches
+  for (const [keyword, attribute] of Object.entries(attributeKeywords)) {
+    if (optionLower.includes(keyword)) {
+      return attribute;
+    }
+  }
+  
+  // Return default attribute based on slot
+  return slotDefaultAttributes[currentSlot] || 'physical';
+};
+
 export const gameService = {
   startGame: async (playerProfile: PlayerProfile): Promise<GameResponse> => {
     console.log("Starting game with profile:", playerProfile);
@@ -340,6 +458,7 @@ Tarefa
 Como narrador, crie uma narrativa imersiva do primeiro treino técnico do jogador no clube.
 Apresente o ambiente, os outros jogadores e o técnico observando o novato.
 Ofereça 2 opções contrastantes: "Focar em impressionar com habilidades individuais" ou "Mostrar espírito coletivo".
+Para cada opção indique: Opção A (segura/conservadora) ou Opção B (arriscada/ousada).
 Retorne apenas JSON { "narrative": "...", "options": { "A": "...", "B": "..." } }.
 Faça a narrativa envolvente, dramática e única, evitando clichês.`
         }
@@ -358,13 +477,17 @@ Faça a narrativa envolvente, dramática e única, evitando clichês.`
         return {
           narrative: `<cyan>Você, ${playerProfile.name}, ${playerProfile.position.toLowerCase()} ${getNationalityAdjective(playerProfile.nationality)} de ${playerProfile.age} anos, chega ao CT do ${playerProfile.startClub} para o primeiro treino profissional. O técnico lhe observa com atenção.</cyan>`,
           nextEvent: {
-            labelA: "Treinar passe",
-            labelB: "Treinar finalização"
+            labelA: "[Seguro] Treinar passes precisos e simples",
+            labelB: "[Arriscado] Tentar dribles e finalizações complexas"
           },
           outcome: null,
           timeline: timeline
         };
       }
+      
+      // Add risk level indicators to options
+      const optionA = `[Seguro] ${parsedResponse.options.A}`;
+      const optionB = `[Arriscado] ${parsedResponse.options.B}`;
       
       // Wrap narrative in cyan tags
       const formattedNarrative = `<cyan>${parsedResponse.narrative}</cyan>`;
@@ -372,8 +495,8 @@ Faça a narrativa envolvente, dramática e única, evitando clichês.`
       return {
         narrative: formattedNarrative,
         nextEvent: {
-          labelA: parsedResponse.options.A,
-          labelB: parsedResponse.options.B
+          labelA: optionA,
+          labelB: optionB
         },
         outcome: null,
         timeline: timeline
@@ -386,8 +509,8 @@ Faça a narrativa envolvente, dramática e única, evitando clichês.`
       return {
         narrative: `<cyan>Você, ${playerProfile.name}, ${playerProfile.position.toLowerCase()} ${getNationalityAdjective(playerProfile.nationality)} de ${playerProfile.age} anos, chega ao CT do ${playerProfile.startClub} para o primeiro treino profissional. O técnico lhe observa com atenção.</cyan>`,
         nextEvent: {
-          labelA: "Treinar passe",
-          labelB: "Treinar finalização"
+          labelA: "[Seguro] Treinar passe",
+          labelB: "[Arriscado] Treinar finalização"
         },
         outcome: null,
         timeline: generateDayTimeline()
@@ -413,6 +536,42 @@ Faça a narrativa envolvente, dramática e única, evitando clichês.`
       // Determine current slot based on choices made
       const currentSlot = Math.min(choiceLog.length + 1, 4);
       
+      // Get the choice text
+      const choiceText = choice === 'A' ? lastChoice?.nextEvent?.labelA : lastChoice?.nextEvent?.labelB;
+      
+      // Determine risk level from the choice text
+      const riskLevel = determineRiskLevel(choiceText || "");
+      
+      // Determine the most relevant attribute for this choice
+      const relevantAttribute = determineRelevantAttribute(choiceText || "", currentSlot);
+      
+      // Calculate success probability based on player attribute and risk level
+      const successProbability = calculateSuccessProbability(playerProfile, riskLevel, relevantAttribute);
+      
+      // Determine if the choice is successful based on probability
+      const isSuccessful = Math.random() < successProbability;
+      
+      // Determine outcome type based on success and risk level
+      let outcomeType: "POSITIVO" | "NEGATIVO" | "NEUTRO" | "DECISIVO" | "ESTRATÉGICO";
+      
+      if (isSuccessful) {
+        if (riskLevel === "high") {
+          outcomeType = "DECISIVO"; // Great success for high-risk options
+        } else if (riskLevel === "medium") {
+          outcomeType = "POSITIVO"; // Normal success for medium-risk options
+        } else {
+          outcomeType = "POSITIVO"; // Normal success for low-risk options
+        }
+      } else {
+        if (riskLevel === "high") {
+          outcomeType = "NEGATIVO"; // Failure for high-risk options
+        } else if (riskLevel === "medium") {
+          outcomeType = "NEUTRO";   // Neutral outcome for medium-risk options
+        } else {
+          outcomeType = "NEUTRO";   // Neutral outcome for low-risk options
+        }
+      }
+      
       // Determine what type of event to show based on the current slot
       let eventType, promptTask;
       
@@ -421,37 +580,43 @@ Faça a narrativa envolvente, dramática e única, evitando clichês.`
           eventType = "TREINO_TECNICO";
           promptTask = `Como narrador, crie uma narrativa imersiva do treino técnico
 e ofereça 2 opções contrastantes relacionadas a diferentes aspectos do treino.
-Evite focar apenas em "treinar X" vs "treinar Y", explore aspectos psicológicos e relacionais também.`;
+Evite focar apenas em "treinar X" vs "treinar Y", explore aspectos psicológicos e relacionais também.
+Mostre explicitamente o resultado da escolha anterior no início da narrativa.`;
           break;
         case 2:
           eventType = timeline[1].type;
           if (eventType === "COLETIVA_IMPRENSA") {
             promptTask = `Como narrador, crie uma cena vívida da coletiva de imprensa
 e ofereça 2 opções contrastantes de como o jogador pode se expressar e lidar com perguntas difíceis.
-Inclua repórteres específicos, perguntas desafiadoras e a pressão do momento.`;
+Inclua repórteres específicos, perguntas desafiadoras e a pressão do momento.
+Mostre explicitamente o resultado da escolha anterior no início da narrativa.`;
           } else {
             promptTask = `Como narrador, crie uma cena envolvente da live nas redes sociais
 e ofereça 2 opções contrastantes de abordagem e interação com os seguidores.
-Explore temas como autenticidade vs imagem pública, interação pessoal vs profissional.`;
+Explore temas como autenticidade vs imagem pública, interação pessoal vs profissional.
+Mostre explicitamente o resultado da escolha anterior no início da narrativa.`;
           }
           break;
         case 3:
           eventType = "TALK_LOCKERROOM";
           promptTask = `Como narrador, crie uma cena tensa e emocional no vestiário antes do jogo
 e ofereça 2 opções contrastantes de como o jogador pode se comportar neste momento crucial.
-Integre relacionamentos com companheiros específicos, a pressão e nervosismo pré-jogo.`;
+Integre relacionamentos com companheiros específicos, a pressão e nervosismo pré-jogo.
+Mostre explicitamente o resultado da escolha anterior no início da narrativa.`;
           break;
         case 4:
           eventType = "MICRO";
           promptTask = `Como narrador, crie uma cena dramática do primeiro lance importante do jogo
 e ofereça 2 opções contrastantes de decisões táticas em uma fração de segundo.
-Descreva o clima do estádio, adversários específicos e a dinâmica de jogo.`;
+Descreva o clima do estádio, adversários específicos e a dinâmica de jogo.
+Mostre explicitamente o resultado da escolha anterior no início da narrativa.`;
           break;
         default:
           eventType = "POS_JOGO";
           promptTask = `Como narrador, crie uma cena emocional do pós-jogo, incluindo a reação da torcida
 e ofereça 2 opções contrastantes de como o jogador pode lidar com o resultado.
-Inclua interações com imprensa, colegas específicos e seu impacto na carreira.`;
+Inclua interações com imprensa, colegas específicos e seu impacto na carreira.
+Mostre explicitamente o resultado da escolha anterior no início da narrativa.`;
       }
       
       // Update the timeline with the most recent choice
@@ -529,6 +694,16 @@ Inclua interações com imprensa, colegas específicos e seu impacto na carreira
         log.nextEvent?.labelB
       ]).filter(Boolean) as string[];
       
+      // Add context about the choice outcome and relevant attribute
+      const attributeContext = `
+Contexto da escolha atual:
+- Opção escolhida: ${choice === 'A' ? 'A' : 'B'} - "${choiceText}"
+- Nível de risco: ${riskLevel}
+- Atributo relevante: ${relevantAttribute} (${playerProfile.attributes[relevantAttribute]})
+- Resultado da tentativa: ${isSuccessful ? 'SUCESSO' : 'FALHA'}
+- Tipo de resultado: ${outcomeType}
+`;
+
       // Use DeepSeek to generate the next part of the narrative
       const data = await getDeepSeekChatCompletion([
         {
@@ -591,18 +766,26 @@ ${formatPlayerAttributes(playerProfile.attributes)}${statsContext}${careerContex
 ${clubContext}
 ${emotionalContext}
 ###
+${attributeContext}
 Histórico de escolhas anteriores:
 ${choiceLog.map((log, idx) => {
   const choiceText = log.choice === 'A' ? log.nextEvent?.labelA : log.nextEvent?.labelB;
   return `Escolha ${idx+1}: "${choiceText}" - Resultado: ${log.outcome?.type || 'NEUTRO'}`;
 }).join('\n')}
 
-Escolha atual: ${choice === 'A' ? 'Opção A' : 'Opção B'} - "${choice === 'A' ? lastChoice?.nextEvent?.labelA : lastChoice?.nextEvent?.labelB}"
+Escolha atual: ${choice === 'A' ? 'Opção A' : 'Opção B'} - "${choiceText}"
 
 ###
 Tarefa
 ${promptTask}
-Retorne apenas JSON { "narrative": "...", "options": { "A": "...", "B": "..." }, "outcome": { "type": "...", "message": "..." } }`
+
+IMPORTANTE: A narrativa deve COMEÇAR descrevendo detalhadamente o resultado da escolha anterior (${isSuccessful ? 'SUCESSO' : 'FALHA'} - ${outcomeType}). Mostre claramente as consequências e reações dos personagens.
+
+Para as próximas opções, marque-as claramente como:
+- Opção A: [Seguro] (menos risco, menos recompensa)
+- Opção B: [Arriscado] (mais risco, mais recompensa)
+
+Retorne apenas JSON { "narrative": "...", "options": { "A": "...", "B": "..." }, "outcome": { "type": "${outcomeType}", "message": "..." } }`
         }
       ], { temperature: 0.9 }); // Higher temperature for more variety
       
@@ -619,12 +802,12 @@ Retorne apenas JSON { "narrative": "...", "options": { "A": "...", "B": "..." },
         return {
           narrative: `<cyan>O treinador analisa sua decisão e direciona o time para o próximo exercício.</cyan>`,
           nextEvent: {
-            labelA: "Continuar treinando com foco",
-            labelB: "Conversar com colegas de time"
+            labelA: "[Seguro] Continuar treinando com foco",
+            labelB: "[Arriscado] Tentar manobras mais complexas"
           },
           outcome: {
-            type: "NEUTRO" as const,
-            message: "O treino continua normalmente"
+            type: outcomeType,
+            message: isSuccessful ? "Sua tentativa foi bem-sucedida" : "Sua tentativa não deu certo"
           },
           timeline: timeline,
           matchStats: { rating: 0.5, keyDefenses: 0 }
@@ -651,11 +834,13 @@ Responda APENAS em JSON como: { "narrative": "...", "options": { "A": "...", "B"
             content: `Precisamos de uma narrativa COMPLETAMENTE NOVA para esta situação:
 ${promptTask}
 
-Escolha atual: ${choice === 'A' ? 'Opção A' : 'Opção B'} - "${choice === 'A' ? lastChoice?.nextEvent?.labelA : lastChoice?.nextEvent?.labelB}"
+Escolha atual: ${choice === 'A' ? 'Opção A' : 'Opção B'} - "${choiceText}"
+Resultado: ${isSuccessful ? 'SUCESSO' : 'FALHA'} - ${outcomeType}
 
 Perfil do jogador: ${playerProfile.name}, ${playerProfile.position}, ${playerProfile.attributes.speed} velocidade, ${playerProfile.attributes.shooting} finalização, ${playerProfile.attributes.charisma} carisma.
 
-Crie uma cena completamente diferente, com outros personagens, ambiente e situação.`
+Crie uma cena completamente diferente, com outros personagens, ambiente e situação.
+Marque as próximas opções como [Seguro] para opção A e [Arriscado] para opção B.`
           }
         ], { temperature: 1.0 });
         
@@ -670,9 +855,21 @@ Crie uma cena completamente diferente, com outros personagens, ambiente e situa�
       
       // Validate outcome type
       const validOutcomeTypes = ["POSITIVO", "NEGATIVO", "NEUTRO", "DECISIVO", "ESTRATÉGICO"];
-      let outcomeType = parsedResponse.outcome?.type || "NEUTRO";
-      if (!validOutcomeTypes.includes(outcomeType)) {
-        outcomeType = "NEUTRO";
+      let outputOutcomeType = parsedResponse.outcome?.type || outcomeType;
+      if (!validOutcomeTypes.includes(outputOutcomeType)) {
+        outputOutcomeType = outcomeType;
+      }
+      
+      // Add risk level indicators to options if they don't have them
+      let optionA = parsedResponse.options.A;
+      let optionB = parsedResponse.options.B;
+      
+      if (!optionA.includes('[Seguro]')) {
+        optionA = `[Seguro] ${optionA}`;
+      }
+      
+      if (!optionB.includes('[Arriscado]')) {
+        optionB = `[Arriscado] ${optionB}`;
       }
       
       // Wrap narrative in appropriate formatting tags
@@ -682,9 +879,9 @@ Crie uma cena completamente diferente, com outros personagens, ambiente e situa�
       const negativeKeywords = ["lesão", "machucado", "contundido", "lesionado", "dor", "perdeu", "falha"];
       const hasNegativeContext = negativeKeywords.some(keyword => formattedNarrative.toLowerCase().includes(keyword));
       
-      if (outcomeType === "NEGATIVO" || hasNegativeContext) {
+      if (outputOutcomeType === "NEGATIVO" || hasNegativeContext) {
         formattedNarrative = `<yellow>${formattedNarrative}</yellow>`;
-      } else if (outcomeType === "DECISIVO") {
+      } else if (outputOutcomeType === "DECISIVO") {
         formattedNarrative = `<magenta>${formattedNarrative}</magenta>`;
       } else {
         formattedNarrative = `<cyan>${formattedNarrative}</cyan>`;
@@ -699,23 +896,50 @@ Crie uma cena completamente diferente, com outros personagens, ambiente e situa�
         };
       }
       
+      // Calculate reward multiplier based on risk
+      const rewardMultiplier = getRewardMultiplier(riskLevel);
+      
       // Extract match stats from narrative and outcome
-      const matchStats = currentSlot >= 3 ? 
+      const baseMatchStats = currentSlot >= 3 ? 
         extractMatchStats(formattedNarrative, parsedResponse.outcome) : 
         { goals: 0, assists: 0, rating: 0, keyDefenses: 0 };
+      
+      // Apply the reward multiplier to match stats if successful
+      const matchStats = isSuccessful ? 
+        {
+          goals: baseMatchStats.goals,
+          assists: baseMatchStats.assists,
+          rating: baseMatchStats.rating * rewardMultiplier,
+          keyDefenses: baseMatchStats.keyDefenses
+        } : baseMatchStats;
+      
+      // Calculate XP gain based on outcome and risk level
+      let xpGain = 0;
+      if (isSuccessful) {
+        xpGain = 3 * rewardMultiplier;
+      }
       
       return {
         narrative: formattedNarrative,
         nextEvent: {
-          labelA: parsedResponse.options.A,
-          labelB: parsedResponse.options.B
+          labelA: optionA,
+          labelB: optionB
         },
         outcome: {
-          type: outcomeType as "POSITIVO" | "NEGATIVO" | "NEUTRO" | "DECISIVO" | "ESTRATÉGICO",
-          message: parsedResponse.outcome?.message || "O jogo continua"
+          type: outputOutcomeType as "POSITIVO" | "NEGATIVO" | "NEUTRO" | "DECISIVO" | "ESTRATÉGICO",
+          message: parsedResponse.outcome?.message || (isSuccessful ? 
+            `Sua ${relevantAttribute === 'charisma' ? 'habilidade social' : 'habilidade'} de ${getAttributeDisplayName(relevantAttribute)} (${playerProfile.attributes[relevantAttribute]}) garantiu o sucesso` : 
+            `Sua ${relevantAttribute === 'charisma' ? 'habilidade social' : 'habilidade'} de ${getAttributeDisplayName(relevantAttribute)} (${playerProfile.attributes[relevantAttribute]}) não foi suficiente`)
         },
         timeline: timeline,
-        matchStats: matchStats
+        matchStats: matchStats,
+        xpGain: xpGain,
+        attributeFocus: relevantAttribute,
+        attributeImproved: isSuccessful ? {
+          name: relevantAttribute,
+          oldValue: playerProfile.attributes[relevantAttribute],
+          newValue: playerProfile.attributes[relevantAttribute] + (isSuccessful ? 0.1 : 0)
+        } : undefined
       };
       
     } catch (error) {
@@ -725,8 +949,8 @@ Crie uma cena completamente diferente, com outros personagens, ambiente e situa�
       return {
         narrative: `<cyan>O treinador avalia seu desempenho e faz algumas anotações.</cyan>`,
         nextEvent: {
-          labelA: "Focar no próximo treino",
-          labelB: "Pedir feedback ao treinador"
+          labelA: "[Seguro] Focar no próximo treino",
+          labelB: "[Arriscado] Pedir feedback ao treinador"
         },
         outcome: {
           type: "NEUTRO" as const,
@@ -755,4 +979,18 @@ function getNationalityAdjective(code: string): string {
   };
   
   return nationalities[code] || code;
+}
+
+// Function to convert attribute keys to display names
+function getAttributeDisplayName(attr: keyof PlayerProfile['attributes']): string {
+  const displayNames: Record<keyof PlayerProfile['attributes'], string> = {
+    speed: "Velocidade",
+    physical: "Físico",
+    shooting: "Finalização",
+    heading: "Cabeceio",
+    charisma: "Carisma",
+    passing: "Passe",
+    defense: "Defesa"
+  };
+  return displayNames[attr] || attr;
 }
