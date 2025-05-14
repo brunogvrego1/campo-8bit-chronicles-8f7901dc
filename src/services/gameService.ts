@@ -46,7 +46,7 @@ export const gameService = {
             labelB: "Fazer trabalho físico extra"
           },
           outcome: {
-            type: "POSITIVO",
+            type: "POSITIVO" as const,
             message: "Treinador impressionado com sua visão de jogo"
           }
         };
@@ -58,7 +58,7 @@ export const gameService = {
             labelB: "Praticar bolas paradas"
           },
           outcome: {
-            type: "POSITIVO",
+            type: "POSITIVO" as const,
             message: "Finalizações precisas chamaram atenção"
           }
         };
@@ -73,7 +73,7 @@ export const gameService = {
             labelB: "Prometer marcar gols"
           },
           outcome: {
-            type: "POSITIVO",
+            type: "POSITIVO" as const,
             message: "Selecionado para o time titular!"
           }
         },
@@ -84,7 +84,7 @@ export const gameService = {
             labelB: "Ignorar e seguir treinando"
           },
           outcome: {
-            type: "NEGATIVO",
+            type: "NEGATIVO" as const,
             message: "Sofrido entrada dura no treino"
           }
         },
@@ -95,7 +95,7 @@ export const gameService = {
             labelB: "Pedir para falar outro dia"
           },
           outcome: {
-            type: "NEUTRO",
+            type: "NEUTRO" as const,
             message: "Jornalista se interessou pela sua história"
           }
         },
@@ -106,10 +106,10 @@ export const gameService = {
             labelB: "Tocar para o companheiro"
           },
           outcome: choice === "A" ? {
-            type: "DECISIVO",
+            type: "DECISIVO" as const,
             message: "Momento crucial no jogo empatado"
           } : {
-            type: "ESTRATÉGICO",
+            type: "ESTRATÉGICO" as const,
             message: "Decisão importante em momento de pressão"
           }
         }
