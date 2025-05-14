@@ -1,4 +1,5 @@
 
+
 export interface PlayerProfile {
   name: string;
   age: number;
@@ -44,8 +45,9 @@ export interface PositionOption {
 
 export interface GameResponse {
   narrative: string;
-  nextEvent: {
+  nextEvent?: {
     labelA: string;
     labelB: string;
   };
 }
+

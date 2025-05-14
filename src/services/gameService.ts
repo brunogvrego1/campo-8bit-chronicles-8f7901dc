@@ -1,4 +1,3 @@
-
 import { PlayerProfile, Choice, GameResponse } from '@/lib/types';
 
 // Mock API service for now (will be replaced with real API calls later)
@@ -12,78 +11,62 @@ export const gameService = {
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     return {
-      narrative: `<cyan>Você, ${playerProfile.name}, ${playerProfile.position.toLowerCase()} ${getNationalityAdjective(playerProfile.nationality)} de ${playerProfile.age} anos, chega ao CT do ${playerProfile.startClub} para o primeiro treino profissional. O técnico lhe observa com atenção.</cyan>`,
-      nextEvent: {
-        labelA: "Treinar passe",
-        labelB: "Treinar finalização"
-      }
+      narrative: `<cyan>TÉCNICO:</cyan> Bem-vindo, ${playerProfile.name}! Como ${playerProfile.position.toLowerCase()} ${getNationalityAdjective(playerProfile.nationality)} de ${playerProfile.age} anos, estamos animados para ter você no ${playerProfile.startClub}. Como se sente no seu primeiro treino profissional?`
     };
   },
   
-  makeChoice: async (playerProfile: PlayerProfile, choiceLog: Choice[], choice: string): Promise<GameResponse> => {
-    console.log("Making choice:", choice);
+  makeUserInput: async (playerProfile: PlayerProfile, choiceLog: Choice[], userInput: string): Promise<GameResponse> => {
+    console.log("User input:", userInput);
     
-    // For now, we'll simulate different responses based on choice
+    // For now, we'll simulate different responses based on user input
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // Get the last chosen option
-    const lastChoiceEvent = choiceLog.length > 0 ? choiceLog[choiceLog.length - 1].event : "";
+    // Simple responses based on keywords in user input
+    const lowerInput = userInput.toLowerCase();
     
-    // Simple branching narrative based on choices
-    if (lastChoiceEvent === "INTRO") {
-      if (choice === "A") {
-        return {
-          narrative: `<cyan>Você decide aprimorar a precisão dos seus passes. O técnico fica impressionado com sua visão de jogo e capacidade de distribuição.</cyan>`,
-          nextEvent: {
-            labelA: "Participar do coletivo",
-            labelB: "Fazer trabalho físico extra"
-          }
-        };
-      } else {
-        return {
-          narrative: `<cyan>Você foca nos chutes a gol. Após uma série de finalizações precisas, o técnico anota algo em sua prancheta com um sorriso discreto.</cyan>`,
-          nextEvent: {
-            labelA: "Mostrar habilidades de drible",
-            labelB: "Praticar bolas paradas"
-          }
-        };
-      }
+    // Check for common keywords and generate appropriate responses
+    if (lowerInput.includes("nervoso") || lowerInput.includes("ansioso")) {
+      return {
+        narrative: `<cyan>TÉCNICO:</cyan> É normal sentir um pouco de nervosismo nos primeiros dias. Todos os grandes jogadores passaram por isso. Continue trabalhando duro e logo vai se sentir em casa.`
+      };
+    } else if (lowerInput.includes("confiante") || lowerInput.includes("pronto")) {
+      return {
+        narrative: `<cyan>TÉCNICO:</cyan> Essa confiança é boa! Mas lembre-se, o futebol profissional é muito diferente da base. Vamos ver o que você pode fazer no treino de hoje.`
+      };
+    } else if (lowerInput.includes("treino") || lowerInput.includes("treinamento")) {
+      return {
+        narrative: `<cyan>TÉCNICO:</cyan> Hoje vamos focar nos fundamentos e em algumas jogadas táticas. Quero ver como você se encaixa no nosso sistema. Mostre seu melhor.`
+      };
+    } else if (lowerInput.includes("jogar") || lowerInput.includes("titular")) {
+      return {
+        narrative: `<cyan>TÉCNICO:</cyan> Calma, tudo no seu tempo. Primeiro preciso ver como você se sai nos treinos. Se continuar progredindo, logo terá sua chance.`
+      };
     } else {
-      // Generate a random scenario for subsequent choices
-      const scenarios = [
-        {
-          narrative: `<cyan>O técnico anuncia que você foi selecionado para o time titular no próximo jogo. Seus companheiros olham para você com respeito.</cyan>`,
-          nextEvent: {
-            labelA: "Agradecer a confiança",
-            labelB: "Prometer marcar gols"
-          }
-        },
-        {
-          narrative: `<yellow>Durante o treino, um companheiro faz uma entrada dura em você. Seus tornozelos doem, mas não parece grave.</yellow>`,
-          nextEvent: {
-            labelA: "Confrontar o jogador",
-            labelB: "Ignorar e seguir treinando"
-          }
-        },
-        {
-          narrative: `<cyan>Um jornalista esportivo se aproxima após o treino e pede uma entrevista exclusiva sobre sua carreira.</cyan>`,
-          nextEvent: {
-            labelA: "Conceder entrevista",
-            labelB: "Pedir para falar outro dia"
-          }
-        },
-        {
-          narrative: `<cyan>Minuto 72, placar empatado em 1-1. Você recebe a bola na entrada da área em posição perigosa.</cyan>`,
-          nextEvent: {
-            labelA: "Chutar a gol",
-            labelB: "Tocar para o companheiro"
-          }
-        }
+      // Generate random responses for other inputs
+      const responses = [
+        `<cyan>TÉCNICO:</cyan> Interessante sua colocação. Vamos ver como você se desenvolve nas próximas semanas.`,
+        `<cyan>TÉCNICO:</cyan> Entendo. Mostre isso em campo, é lá que realmente conta.`,
+        `<cyan>ASSISTENTE TÉCNICO:</cyan> O técnico está impressionado com sua atitude. Continue assim.`,
+        `<yellow>JOGADOR VETERANO:</yellow> Ei, novato! Gostei da sua disposição. Se precisar de ajuda, é só pedir.`,
+        `<cyan>TÉCNICO:</cyan> Certo, vamos começar o treino então. Quero ver o que você pode fazer.`
       ];
       
-      const randomScenario = scenarios[Math.floor(Math.random() * scenarios.length)];
-      return randomScenario;
+      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+      return { narrative: randomResponse };
     }
+  },
+  
+  makeChoice: async (playerProfile: PlayerProfile, choiceLog: Choice[], choice: string): Promise<GameResponse> => {
+    // Keeping this for compatibility, but we'll be using makeUserInput instead
+    console.log("Making choice:", choice);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return {
+      narrative: `<cyan>TÉCNICO:</cyan> Escolha antiga detectada. Use o chat para interagir.`,
+      nextEvent: {
+        labelA: "Ok",
+        labelB: "Entendi"
+      }
+    };
   }
 };
 
