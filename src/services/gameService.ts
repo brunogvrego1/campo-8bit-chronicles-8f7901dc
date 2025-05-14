@@ -1,6 +1,7 @@
 
 import { PlayerProfile, Choice, GameResponse } from '@/lib/types';
 import OpenAI from 'openai';
+import { supabase } from "@/integrations/supabase/client";
 
 // Initialize OpenAI client
 // Note: In production, API keys should be stored securely, not in frontend code
@@ -26,55 +27,59 @@ export const isOpenAIInitialized = (): boolean => {
   return openai !== null || localStorage.getItem('openai_initialized') === 'true';
 };
 
+// Call DeepSeek API through Supabase Edge Function
+const callDeepSeekAI = async (messages: any[]) => {
+  try {
+    const { data, error } = await supabase.functions.invoke("deepseek-chat", {
+      body: {
+        messages,
+      },
+    });
+
+    if (error) {
+      console.error("DeepSeek API error:", error);
+      throw new Error(`DeepSeek API error: ${error.message}`);
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error calling DeepSeek service:", error);
+    throw error;
+  }
+};
+
 export const gameService = {
   startGame: async (playerProfile: PlayerProfile): Promise<GameResponse> => {
     console.log("Starting game with profile:", playerProfile);
     
-    // If OpenAI is not initialized, use mock service
-    if (!openai) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      return {
-        narrative: `<cyan>Você, ${playerProfile.name}, ${playerProfile.position.toLowerCase()} ${getNationalityAdjective(playerProfile.nationality)} de ${playerProfile.age} anos, chega ao CT do ${playerProfile.startClub} para o primeiro treino profissional. O técnico lhe observa com atenção.</cyan>`,
-        nextEvent: {
-          labelA: "Treinar passe",
-          labelB: "Treinar finalização"
-        },
-        outcome: null // No outcome for the first narrative
-      };
-    }
-    
     try {
-      // Use OpenAI to generate the initial narrative
-      const completion = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system", 
-            content: `You are a football career simulator game. Create engaging narratives for a player's journey. 
-                     You should output ONLY in Portuguese. Format your responses like this:
-                     {
-                       "narrative": "Story text here",
-                       "options": {
-                         "A": "Option A text",
-                         "B": "Option B text"
-                       }
-                     }`
-          },
-          {
-            role: "user", 
-            content: `Generate the introduction for a football player career. Player details:
-                     Name: ${playerProfile.name}
-                     Age: ${playerProfile.age}
-                     Position: ${playerProfile.position}
-                     Nationality: ${getNationalityAdjective(playerProfile.nationality)}
-                     Starting Club: ${playerProfile.startClub}`
-          }
-        ],
-      });
+      // Use DeepSeek to generate the initial narrative
+      const data = await callDeepSeekAI([
+        {
+          role: "system", 
+          content: `You are a football career simulator game. Create engaging narratives for a player's journey. 
+                   You should output ONLY in Portuguese. Format your responses like this:
+                   {
+                     "narrative": "Story text here",
+                     "options": {
+                       "A": "Option A text",
+                       "B": "Option B text"
+                     }
+                   }`
+        },
+        {
+          role: "user", 
+          content: `Generate the introduction for a football player career. Player details:
+                   Name: ${playerProfile.name}
+                   Age: ${playerProfile.age}
+                   Position: ${playerProfile.position}
+                   Nationality: ${getNationalityAdjective(playerProfile.nationality)}
+                   Starting Club: ${playerProfile.startClub}`
+        }
+      ]);
       
       // Parse the response
-      const responseText = completion.choices[0].message.content || '';
+      const responseText = data.content || '';
       let parsedResponse;
       
       try {
@@ -106,7 +111,7 @@ export const gameService = {
       };
       
     } catch (error) {
-      console.error("Error calling OpenAI:", error);
+      console.error("Error calling DeepSeek AI:", error);
       
       // Fallback to default response
       return {
@@ -123,102 +128,6 @@ export const gameService = {
   makeChoice: async (playerProfile: PlayerProfile, choiceLog: Choice[], choice: string): Promise<GameResponse> => {
     console.log("Making choice:", choice);
     
-    // If OpenAI is not initialized or we're offline, use mock service
-    if (!openai) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const lastChoiceEvent = choiceLog.length > 0 ? choiceLog[choiceLog.length - 1].event : "";
-      
-      // Prepare a default outcome message with a properly typed outcome
-      const outcome = {
-        type: choice === "A" ? "POSITIVO" as const : (Math.random() > 0.5 ? "POSITIVO" as const : "NEUTRO" as const), 
-        message: choice === "A" ? "Decisão bem recebida pela equipe" : "Resultado com efeito limitado"
-      };
-      
-      // Use mock service logic
-      if (lastChoiceEvent === "INTRO") {
-        if (choice === "A") {
-          return {
-            narrative: `<cyan>Você decide aprimorar a precisão dos seus passes. O técnico fica impressionado com sua visão de jogo e capacidade de distribuição.</cyan>`,
-            nextEvent: {
-              labelA: "Participar do coletivo",
-              labelB: "Fazer trabalho físico extra"
-            },
-            outcome: {
-              type: "POSITIVO" as const,
-              message: "Treinador impressionado com sua visão de jogo"
-            }
-          };
-        } else {
-          return {
-            narrative: `<cyan>Você foca nos chutes a gol. Após uma série de finalizações precisas, o técnico anota algo em sua prancheta com um sorriso discreto.</cyan>`,
-            nextEvent: {
-              labelA: "Mostrar habilidades de drible",
-              labelB: "Praticar bolas paradas"
-            },
-            outcome: {
-              type: "POSITIVO" as const,
-              message: "Finalizações precisas chamaram atenção"
-            }
-          };
-        }
-      } else {
-        // Generate a random scenario for subsequent choices
-        const scenarios = [
-          {
-            narrative: `<cyan>O técnico anuncia que você foi selecionado para o time titular no próximo jogo. Seus companheiros olham para você com respeito.</cyan>`,
-            nextEvent: {
-              labelA: "Agradecer a confiança",
-              labelB: "Prometer marcar gols"
-            },
-            outcome: {
-              type: "POSITIVO" as const,
-              message: "Selecionado para o time titular!"
-            }
-          },
-          {
-            narrative: `<yellow>Durante o treino, um companheiro faz uma entrada dura em você. Seus tornozelos doem, mas não parece grave.</yellow>`,
-            nextEvent: {
-              labelA: "Confrontar o jogador",
-              labelB: "Ignorar e seguir treinando"
-            },
-            outcome: {
-              type: "NEGATIVO" as const,
-              message: "Sofrido entrada dura no treino"
-            }
-          },
-          {
-            narrative: `<cyan>Um jornalista esportivo se aproxima após o treino e pede uma entrevista exclusiva sobre sua carreira.</cyan>`,
-            nextEvent: {
-              labelA: "Conceder entrevista",
-              labelB: "Pedir para falar outro dia"
-            },
-            outcome: {
-              type: "NEUTRO" as const,
-              message: "Jornalista se interessou pela sua história"
-            }
-          },
-          {
-            narrative: `<cyan>Minuto 72, placar empatado em 1-1. Você recebe a bola na entrada da área em posição perigosa.</cyan>`,
-            nextEvent: {
-              labelA: "Chutar a gol",
-              labelB: "Tocar para o companheiro"
-            },
-            outcome: choice === "A" ? {
-              type: "DECISIVO" as const,
-              message: "Momento crucial no jogo empatado"
-            } : {
-              type: "ESTRATÉGICO" as const,
-              message: "Decisão importante em momento de pressão"
-            }
-          }
-        ];
-        
-        const randomScenario = scenarios[Math.floor(Math.random() * scenarios.length)];
-        return randomScenario;
-      }
-    }
-    
     try {
       // Get the last chosen option and its text
       const lastChoice = choiceLog.length > 0 ? choiceLog[choiceLog.length - 1] : null;
@@ -231,53 +140,50 @@ export const gameService = {
         return `Player chose: ${choiceText}. Outcome: ${log.outcome?.type || 'NONE'} - ${log.outcome?.message || 'No outcome'}`;
       }).join("\n");
       
-      // Use OpenAI to generate the next part of the narrative
-      const completion = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system", 
-            content: `You are a football career simulator game. Create engaging narratives based on player choices.
-                     Output ONLY in Portuguese. Format responses like this:
-                     {
-                       "narrative": "Story text based on the choice",
-                       "options": {
-                         "A": "Next option A",
-                         "B": "Next option B"
-                       },
-                       "outcome": {
-                         "type": "OUTCOME_TYPE",
-                         "message": "Brief outcome message"
-                       }
+      // Use DeepSeek to generate the next part of the narrative
+      const data = await callDeepSeekAI([
+        {
+          role: "system", 
+          content: `You are a football career simulator game. Create engaging narratives based on player choices.
+                   Output ONLY in Portuguese. Format responses like this:
+                   {
+                     "narrative": "Story text based on the choice",
+                     "options": {
+                       "A": "Next option A",
+                       "B": "Next option B"
+                     },
+                     "outcome": {
+                       "type": "OUTCOME_TYPE",
+                       "message": "Brief outcome message"
                      }
-                     
-                     OUTCOME_TYPE must be one of: "POSITIVO", "NEGATIVO", "NEUTRO", "DECISIVO", or "ESTRATÉGICO".
-                     Make the outcome appropriate for the choice made.`
-          },
-          {
-            role: "user", 
-            content: `Player Profile:
-                     Name: ${playerProfile.name}
-                     Age: ${playerProfile.age}
-                     Position: ${playerProfile.position}
-                     Nationality: ${getNationalityAdjective(playerProfile.nationality)}
-                     Club: ${playerProfile.startClub}
-                     
-                     Previous game history:
-                     ${historyText}
-                     
-                     Current narrative:
-                     ${lastNarrative}
-                     
-                     Player chose: ${choice === 'A' ? 'Option A' : 'Option B'} - "${choice === 'A' ? lastChoice?.nextEvent?.labelA : lastChoice?.nextEvent?.labelB}"
-                     
-                     Generate the next part of the narrative, options, and outcome.`
-          }
-        ],
-      });
+                   }
+                   
+                   OUTCOME_TYPE must be one of: "POSITIVO", "NEGATIVO", "NEUTRO", "DECISIVO", or "ESTRATÉGICO".
+                   Make the outcome appropriate for the choice made.`
+        },
+        {
+          role: "user", 
+          content: `Player Profile:
+                   Name: ${playerProfile.name}
+                   Age: ${playerProfile.age}
+                   Position: ${playerProfile.position}
+                   Nationality: ${getNationalityAdjective(playerProfile.nationality)}
+                   Club: ${playerProfile.startClub}
+                   
+                   Previous game history:
+                   ${historyText}
+                   
+                   Current narrative:
+                   ${lastNarrative}
+                   
+                   Player chose: ${choice === 'A' ? 'Option A' : 'Option B'} - "${choice === 'A' ? lastChoice?.nextEvent?.labelA : lastChoice?.nextEvent?.labelB}"
+                   
+                   Generate the next part of the narrative, options, and outcome.`
+        }
+      ]);
       
       // Parse the response
-      const responseText = completion.choices[0].message.content || '';
+      const responseText = data.content || '';
       let parsedResponse;
       
       try {
@@ -334,7 +240,7 @@ export const gameService = {
       };
       
     } catch (error) {
-      console.error("Error calling OpenAI:", error);
+      console.error("Error calling DeepSeek AI:", error);
       
       // Fallback to a default response
       return {

@@ -34,7 +34,7 @@ export interface GameState {
   } | null;
   isLoading: boolean;
   gameStarted: boolean;
-  activeScreen: "creation" | "game" | "history" | "deepseek";
+  activeScreen: "creation" | "game" | "history";
   creationStep: number;
 }
 
