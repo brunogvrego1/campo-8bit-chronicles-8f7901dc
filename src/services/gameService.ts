@@ -323,7 +323,7 @@ INSTRUÇÕES ESPECIAIS:
 4. Crie opções A e B distintas que representem escolhas realmente diferentes.
 5. Use vocabulário variado e evite estruturas de frases repetitivas.
 6. Coloque o jogador em situações emocionalmente impactantes, não apenas técnicas.
-7. NÃO USE códigos de formatação como markdown ou ```json. Retorne apenas JSON puro.`
+7. NÃO USE códigos de formatação como markdown. Retorne apenas JSON puro.`
         },
         {
           role: "user", 
@@ -560,7 +560,7 @@ INSTRUÇÕES ESPECIAIS:
 7. Reflita a personalidade do jogador baseada em seus atributos e histórico.
 8. Varie o tom narrativo entre momentos (tenso, leve, dramático, inspirador).
 9. Use NOMES ESPECÍFICOS para técnicos, companheiros e adversários.
-10. NÃO USE códigos de formatação como markdown ou ```json. Retorne apenas JSON puro.
+10. NÃO USE códigos de formatação como markdown. Retorne apenas JSON puro.
 
 EXEMPLOS DE BOAS NARRATIVAS:
 - "O sol castiga o gramado do CT quando Tuca Menezes, o técnico linha-dura do São Paulo, aponta para você. 'Quero ver o que sabe fazer, garoto. Mostre seu valor.' Júnior, o capitão, cruza os braços observando cada movimento seu. A pressão é palpável."
