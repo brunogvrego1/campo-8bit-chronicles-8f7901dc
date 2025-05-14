@@ -29,7 +29,11 @@ serve(async (req) => {
     const chatMaxTokens = max_tokens || 1024;
     const shouldStream = stream !== undefined ? stream : false;
 
-    console.log(`Processing request for model ${chatModel}`);
+    console.log(`Processing request for model ${chatModel} with temperature ${chatTemp}`);
+
+    // Extract the prompt to check for formatting issues
+    const userPrompt = messages.find(m => m.role === "user")?.content || "";
+    const isJsonRequested = userPrompt.toLowerCase().includes("json");
 
     // Make the API call to DeepSeek
     const response = await client.chat.completions.create({
@@ -40,9 +44,38 @@ serve(async (req) => {
       stream: shouldStream
     });
 
-    // Return the response
+    // Process the content to ensure proper JSON formatting
+    let processedContent = response.choices[0].message.content || "";
+    
+    // Fix common JSON formatting issues
+    if (isJsonRequested) {
+      // Strip code block markers if present
+      processedContent = processedContent.replace(/```json\n/g, '').replace(/```\n?/g, '');
+      
+      // Check if it's valid JSON
+      try {
+        JSON.parse(processedContent);
+      } catch (e) {
+        console.error("Invalid JSON in response:", e.message);
+        console.log("Attempting to fix JSON format...");
+        
+        // Try to extract JSON using regex
+        const jsonMatch = processedContent.match(/{[\s\S]*}/);
+        if (jsonMatch) {
+          processedContent = jsonMatch[0];
+          try {
+            // Verify the extracted JSON is valid
+            JSON.parse(processedContent);
+          } catch (e2) {
+            console.error("Failed to extract valid JSON:", e2.message);
+          }
+        }
+      }
+    }
+
+    // Return the response with processed content
     return new Response(JSON.stringify({
-      content: response.choices[0].message.content,
+      content: processedContent,
       role: response.choices[0].message.role,
       model: response.model,
       id: response.id,

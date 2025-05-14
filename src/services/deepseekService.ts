@@ -27,10 +27,16 @@ export const getDeepSeekChatCompletion = async (
   options: ChatCompletionOptions = {}
 ) => {
   try {
+    // Set a higher temperature by default to increase creativity
+    const defaultOptions = {
+      temperature: 0.85,
+      ...options
+    };
+
     const { data, error } = await supabase.functions.invoke("deepseek-chat", {
       body: {
         messages,
-        ...options,
+        ...defaultOptions,
       },
     });
 
