@@ -91,28 +91,23 @@ const CreatePlayer = () => {
       // 25% chance for small teams (power_rating < 5)
       const randomValue = Math.random() * 100;
       
-      let tierQuery;
+      let query = supabase.from('teams').select('name, division').eq('country_code', countryCode);
+      
       if (randomValue <= 5) {
         // 5% chance - elite teams
-        tierQuery = 'power_rating >= 16';
+        query = query.gte('power_rating', 16);
       } else if (randomValue <= 15) {
         // 10% chance - good teams
-        tierQuery = 'power_rating >= 13 AND power_rating < 16';
+        query = query.gte('power_rating', 13).lt('power_rating', 16);
       } else if (randomValue <= 75) {
         // 60% chance - mid-tier teams
-        tierQuery = 'power_rating >= 5 AND power_rating < 13';
+        query = query.gte('power_rating', 5).lt('power_rating', 13);
       } else {
         // 25% chance - small teams
-        tierQuery = 'power_rating < 5';
+        query = query.lt('power_rating', 5);
       }
       
-      const { data, error } = await supabase
-        .from('teams')
-        .select('name, division')
-        .eq('country_code', countryCode)
-        .filter(tierQuery)
-        .order('power_rating', { ascending: false })
-        .limit(10);
+      const { data, error } = await query.order('power_rating', { ascending: false }).limit(10);
       
       if (error) {
         console.error("Error fetching team:", error);
