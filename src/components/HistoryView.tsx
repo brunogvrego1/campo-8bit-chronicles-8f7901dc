@@ -1,15 +1,25 @@
 
 import { useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
-import { ArrowLeft, Copy } from 'lucide-react';
+import { ArrowLeft, Copy, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Choice } from '@/lib/types'; // Added import for Choice type
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 const HistoryView = () => {
-  const { playerProfile, choiceLog, setActiveScreen } = useGameStore();
+  const { playerProfile, choiceLog, setActiveScreen, resetGame } = useGameStore();
   const { toast } = useToast();
   const [page, setPage] = useState(0);
   const [expandedChoice, setExpandedChoice] = useState<number | null>(null);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const itemsPerPage = 5; // Reduced to show fewer items per page due to increased content
   
   // Calculate the total number of pages
@@ -89,6 +99,16 @@ const HistoryView = () => {
       title: "URL copiado!",
       description: "Link do seu histórico copiado para a área de transferência."
     });
+  };
+  
+  const handleResetCareer = () => {
+    resetGame();
+    toast({
+      title: "Carreira reiniciada!",
+      description: "Seu histórico foi apagado e você pode começar uma nova carreira."
+    });
+    setActiveScreen('creation');
+    setIsResetDialogOpen(false);
   };
   
   return (
@@ -183,15 +203,42 @@ const HistoryView = () => {
         </div>
       )}
       
-      {/* Share button */}
-      <div className="flex justify-center mt-6">
+      {/* Action buttons */}
+      <div className="flex justify-center mt-6 space-x-4">
         <button 
           className="retro-button flex items-center"
           onClick={copyHistoryUrl}
         >
-          <Copy className="w-4 h-4 mr-2" /> Copiar URL do meu histórico
+          <Copy className="w-4 h-4 mr-2" /> Copiar URL
+        </button>
+        
+        <button 
+          className="retro-button retro-button-danger flex items-center"
+          onClick={() => setIsResetDialogOpen(true)}
+        >
+          <Trash2 className="w-4 h-4 mr-2" /> Reiniciar carreira
         </button>
       </div>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reiniciar carreira?</DialogTitle>
+            <DialogDescription>
+              Essa ação apagará todo seu histórico e progresso. Você será redirecionado para a tela de criação de jogador.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex justify-between">
+            <Button variant="outline" onClick={() => setIsResetDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleResetCareer}>
+              Sim, reiniciar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

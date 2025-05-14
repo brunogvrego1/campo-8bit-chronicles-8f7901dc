@@ -5,9 +5,10 @@ import GameScreen from './GameScreen';
 import HistoryView from './HistoryView';
 import { useEffect } from 'react';
 import { initializeOpenAI } from '@/services/gameService';
+import { History } from 'lucide-react';
 
 const Layout = () => {
-  const { activeScreen } = useGameStore();
+  const { activeScreen, gameStarted, setActiveScreen } = useGameStore();
   
   useEffect(() => {
     // Try to initialize OpenAI with saved API key on component mount
@@ -41,6 +42,15 @@ const Layout = () => {
           >
             Game
           </button>
+          
+          {gameStarted && (
+            <button 
+              className={`px-2 py-1 ${activeScreen === 'history' ? 'bg-cyan-700 text-white' : 'bg-gray-600'} rounded flex items-center`}
+              onClick={() => setActiveScreen('history')}
+            >
+              <History className="w-3 h-3 mr-1" /> Histórico
+            </button>
+          )}
         </div>
         {renderScreen()}
       </div>
