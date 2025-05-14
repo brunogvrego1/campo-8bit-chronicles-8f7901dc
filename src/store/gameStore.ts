@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { GameState, PlayerProfile, Choice } from '@/lib/types';
@@ -61,7 +60,7 @@ export type GameStoreType = GameState & {
   incrementAge: () => void;
 };
 
-export const useGameStore = create<GameStoreType>(
+export const useGameStore = create<GameStoreType>()(
   persist(
     (set, get) => ({
       ...initialState,

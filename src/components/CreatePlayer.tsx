@@ -42,23 +42,23 @@ const generatePlayerAttributes = () => {
 };
 
 const nationalities: NationalityOption[] = [
-  { code: 'BR', name: 'Brasil', flag: '🇧🇷', league: 'Brasileirão', startClub: '' },
-  { code: 'US', name: 'EUA', flag: '🇺🇸', league: 'MLS', startClub: '' },
-  { code: 'FR', name: 'França', flag: '🇫🇷', league: 'Ligue 1', startClub: '' },
-  { code: 'JP', name: 'Japão', flag: '🇯🇵', league: 'J-League', startClub: '' },
-  { code: 'AR', name: 'Argentina', flag: '🇦🇷', league: 'Primera División', startClub: '' },
-  { code: 'ES', name: 'Espanha', flag: '🇪🇸', league: 'La Liga', startClub: '' },
-  { code: 'DE', name: 'Alemanha', flag: '🇩🇪', league: 'Bundesliga', startClub: '' },
-  { code: 'IT', name: 'Itália', flag: '🇮🇹', league: 'Serie A', startClub: '' },
+  { value: 'BR', label: 'Brasil', code: 'BR', name: 'Brasil', flag: '🇧🇷', league: 'Brasileirão', startClub: '' },
+  { value: 'US', label: 'EUA', code: 'US', name: 'EUA', flag: '🇺🇸', league: 'MLS', startClub: '' },
+  { value: 'FR', label: 'França', code: 'FR', name: 'França', flag: '🇫🇷', league: 'Ligue 1', startClub: '' },
+  { value: 'JP', label: 'Japão', code: 'JP', name: 'Japão', flag: '🇯🇵', league: 'J-League', startClub: '' },
+  { value: 'AR', label: 'Argentina', code: 'AR', name: 'Argentina', flag: '🇦🇷', league: 'Primera División', startClub: '' },
+  { value: 'ES', label: 'Espanha', code: 'ES', name: 'Espanha', flag: '🇪🇸', league: 'La Liga', startClub: '' },
+  { value: 'DE', label: 'Alemanha', code: 'DE', name: 'Alemanha', flag: '🇩🇪', league: 'Bundesliga', startClub: '' },
+  { value: 'IT', label: 'Itália', code: 'IT', name: 'Itália', flag: '🇮🇹', league: 'Serie A', startClub: '' },
 ];
 
 const positions: PositionOption[] = [
-  { code: 'GOL', name: 'Goleiro' },
-  { code: 'ZAG', name: 'Zagueiro' },
-  { code: 'LAT', name: 'Lateral' },
-  { code: 'VOL', name: 'Volante' },
-  { code: 'MEI', name: 'Meia' },
-  { code: 'ATA', name: 'Atacante' }
+  { value: 'GOL', label: 'Goleiro', code: 'GOL', name: 'Goleiro' },
+  { value: 'ZAG', label: 'Zagueiro', code: 'ZAG', name: 'Zagueiro' },
+  { value: 'LAT', label: 'Lateral', code: 'LAT', name: 'Lateral' },
+  { value: 'VOL', label: 'Volante', code: 'VOL', name: 'Volante' },
+  { value: 'MEI', label: 'Meia', code: 'MEI', name: 'Meia' },
+  { value: 'ATA', label: 'Atacante', code: 'ATA', name: 'Atacante' }
 ];
 
 const CreatePlayer = () => {
@@ -364,9 +364,9 @@ const CreatePlayer = () => {
             <div className="grid grid-cols-4 gap-2 w-full">
               {nationalities.map((nat) => (
                 <button
-                  key={nat.code}
+                  key={nat.value}
                   className={`p-2 flex flex-col items-center justify-center border-2 
-                            ${nationality?.code === nat.code ? 'border-magenta' : 'border-cyan'}`}
+                            ${nationality?.value === nat.value ? 'border-magenta' : 'border-cyan'}`}
                   onClick={() => handleNationalitySelected(nat)}
                 >
                   <span className="text-2xl">{nat.flag}</span>
@@ -400,12 +400,12 @@ const CreatePlayer = () => {
             <div className="grid grid-cols-3 gap-4 w-full">
               {positions.map((pos) => (
                 <button
-                  key={pos.code}
-                  className={`retro-button ${position?.code === pos.code ? '' : 'retro-button-secondary'} w-full`}
+                  key={pos.value}
+                  className={`retro-button ${position?.value === pos.value ? '' : 'retro-button-secondary'} w-full`}
                   onClick={() => handlePositionSelected(pos)}
                   disabled={isLoading}
                 >
-                  {pos.code}
+                  {pos.value}
                 </button>
               ))}
             </div>
