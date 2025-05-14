@@ -12,6 +12,16 @@ const initialState: GameState = {
   gameStarted: false,
   activeScreen: "creation",
   creationStep: 0,
+  xpPool: 0,
+  attributeFocus: null,
+  weekCount: 0,
+  seasonStats: {
+    goals: 0,
+    assists: 0,
+    appearances: 0,
+    averageRating: 0,
+    totalRating: 0,
+  }
 };
 
 export const useGameStore = create<GameState & {
@@ -24,9 +34,15 @@ export const useGameStore = create<GameState & {
   setActiveScreen: (screen: "creation" | "game" | "history") => void;
   setCreationStep: (step: number) => void;
   resetGame: () => void;
+  addXp: (amount: number) => void;
+  setAttributeFocus: (attribute: keyof PlayerProfile['attributes'] | null) => void;
+  processWeekEnd: () => void;
+  updateAttribute: (attribute: keyof PlayerProfile['attributes'], newValue: number) => void;
+  addToSeasonStats: (stats: { goals?: number, assists?: number, rating?: number }) => void;
+  resetSeasonStats: () => void;
 }>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...initialState,
       
       setPlayerProfile: (profile) => set(() => ({ 
@@ -65,6 +81,110 @@ export const useGameStore = create<GameState & {
       resetGame: () => set(() => ({ 
         ...initialState 
       })),
+      
+      addXp: (amount) => {
+        // Get current state
+        const { playerProfile, xpPool } = get();
+        
+        // Apply age multiplier
+        const age = playerProfile?.age || 18;
+        let multiplier = 1.0;
+        
+        if (age <= 22) multiplier = 1.2;
+        else if (age >= 28) multiplier = 0.7;
+        
+        // Calculate final XP gain
+        const finalAmount = Math.round(amount * multiplier);
+        
+        set({ xpPool: xpPool + finalAmount });
+        
+        // Process attribute improvements based on new XP
+        get().processWeekEnd();
+      },
+      
+      setAttributeFocus: (attribute) => set(() => ({
+        attributeFocus: attribute
+      })),
+      
+      processWeekEnd: () => {
+        const state = get();
+        const { playerProfile, xpPool, attributeFocus } = state;
+        
+        if (!playerProfile || !attributeFocus) return;
+        
+        // Calculate potential (basic implementation)
+        const potential = 10; // Can be made dynamic in the future
+        
+        // Current value of the focused attribute
+        const currentValue = playerProfile.attributes[attributeFocus];
+        
+        // If already at or above potential, no improvement
+        if (currentValue >= potential) return;
+        
+        // Calculate cost for next point
+        const costToNextPoint = 5 * (currentValue - 2);
+        
+        let remainingXp = xpPool;
+        let newValue = currentValue;
+        
+        // Check if we have enough XP for improvement
+        if (remainingXp >= costToNextPoint) {
+          // Improve attribute and deduct XP
+          newValue += 1;
+          remainingXp -= costToNextPoint;
+          
+          // Update the attribute
+          state.updateAttribute(attributeFocus, newValue);
+          
+          // Update week count
+          set({ weekCount: state.weekCount + 1 });
+        }
+        
+        // Set remaining XP
+        set({ xpPool: remainingXp });
+      },
+      
+      updateAttribute: (attribute, newValue) => set(state => {
+        if (!state.playerProfile) return state;
+        
+        return {
+          playerProfile: {
+            ...state.playerProfile,
+            attributes: {
+              ...state.playerProfile.attributes,
+              [attribute]: newValue
+            }
+          }
+        };
+      }),
+      
+      addToSeasonStats: (stats) => set(state => {
+        const currentStats = state.seasonStats;
+        const appearances = stats.rating !== undefined ? currentStats.appearances + 1 : currentStats.appearances;
+        const totalRating = stats.rating !== undefined 
+          ? currentStats.totalRating + stats.rating 
+          : currentStats.totalRating;
+          
+        return {
+          seasonStats: {
+            goals: currentStats.goals + (stats.goals || 0),
+            assists: currentStats.assists + (stats.assists || 0),
+            appearances,
+            totalRating,
+            averageRating: appearances > 0 ? totalRating / appearances : 0
+          }
+        };
+      }),
+      
+      resetSeasonStats: () => set({
+        seasonStats: {
+          goals: 0,
+          assists: 0,
+          appearances: 0,
+          averageRating: 0,
+          totalRating: 0
+        }
+      })
     }),
     {
       name: "campo-8bit-storage",

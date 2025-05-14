@@ -105,6 +105,35 @@ const formatPlayerAttributes = (attributes: PlayerProfile['attributes']): string
   return `Atributos: Vel ${attributes.speed}  Fís ${attributes.physical}  Chu ${attributes.shooting}  Cab ${attributes.heading}  Car ${attributes.charisma}  Pas ${attributes.passing}  Def ${attributes.defense}`;
 };
 
+// Extract match performance stats from narrative
+const extractMatchStats = (narrative: string, outcome?: { type: string }): { goals: number, assists: number, rating: number } => {
+  const stats = { goals: 0, assists: 0, rating: 0 };
+  
+  // Determine base rating from outcome type
+  if (outcome) {
+    stats.rating = outcome.type === "POSITIVO" ? 1 : 
+                  outcome.type === "DECISIVO" ? 2 : 
+                  outcome.type === "NEGATIVO" ? 0 : 0.5;
+  }
+  
+  // Check for goals in narrative
+  if (narrative.toLowerCase().includes("gol") || 
+      narrative.toLowerCase().includes("marcar") || 
+      narrative.toLowerCase().includes("balança a rede")) {
+    stats.goals = 1;
+    stats.rating = Math.max(stats.rating, 1.5);
+  }
+  
+  // Check for assists
+  if (narrative.toLowerCase().includes("assist") || 
+      narrative.toLowerCase().includes("passe decisivo")) {
+    stats.assists = 1;
+    stats.rating = Math.max(stats.rating, 1.2);
+  }
+  
+  return stats;
+};
+
 export const gameService = {
   startGame: async (playerProfile: PlayerProfile): Promise<GameResponse> => {
     console.log("Starting game with profile:", playerProfile);
@@ -324,7 +353,8 @@ Devolva JSON { "narrative": "...", "options": { "A": "...", "B": "..." }, "outco
             type: "NEUTRO" as const,
             message: "O treino continua normalmente"
           },
-          timeline: timeline
+          timeline: timeline,
+          matchStats: { rating: 0.5 }
         };
       }
       
@@ -359,6 +389,11 @@ Devolva JSON { "narrative": "...", "options": { "A": "...", "B": "..." }, "outco
         };
       }
       
+      // Extract match stats from narrative and outcome
+      const matchStats = currentSlot >= 3 ? 
+        extractMatchStats(formattedNarrative, parsedResponse.outcome) : 
+        { goals: 0, assists: 0, rating: 0 };
+      
       return {
         narrative: formattedNarrative,
         nextEvent: {
@@ -369,7 +404,8 @@ Devolva JSON { "narrative": "...", "options": { "A": "...", "B": "..." }, "outco
           type: outcomeType as "POSITIVO" | "NEGATIVO" | "NEUTRO" | "DECISIVO" | "ESTRATÉGICO",
           message: parsedResponse.outcome?.message || "O jogo continua"
         },
-        timeline: timeline
+        timeline: timeline,
+        matchStats: matchStats
       };
       
     } catch (error) {
@@ -386,7 +422,8 @@ Devolva JSON { "narrative": "...", "options": { "A": "...", "B": "..." }, "outco
           type: "NEUTRO" as const,
           message: "Treinamento em andamento"
         },
-        timeline: generateDayTimeline()
+        timeline: generateDayTimeline(),
+        matchStats: { rating: 0.5 }
       };
     }
   }

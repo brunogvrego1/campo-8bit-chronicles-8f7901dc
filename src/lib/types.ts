@@ -1,3 +1,4 @@
+
 export interface PlayerProfile {
   name: string;
   age: number;
@@ -39,6 +40,18 @@ export interface Choice {
     message: string;
   };
   timeline?: TimelineEvent[];
+  xpGain?: number;
+  attributeFocus?: keyof PlayerProfile['attributes'] | null;
+  attributeImproved?: {
+    name: keyof PlayerProfile['attributes'];
+    oldValue: number;
+    newValue: number;
+  };
+  matchStats?: {
+    goals?: number;
+    assists?: number;
+    rating?: number; // 0-2 scale as per narrativeRating
+  };
 }
 
 export interface GameState {
@@ -53,6 +66,16 @@ export interface GameState {
   gameStarted: boolean;
   activeScreen: "creation" | "game" | "history";
   creationStep: number;
+  xpPool: number;
+  attributeFocus: keyof PlayerProfile['attributes'] | null;
+  weekCount: number;
+  seasonStats: {
+    goals: number;
+    assists: number;
+    appearances: number;
+    averageRating: number;
+    totalRating: number;
+  };
 }
 
 export interface NationalityOption {
@@ -79,4 +102,11 @@ export interface GameResponse {
     message: string;
   };
   timeline?: TimelineEvent[];
+  xpGain?: number;
+  attributeFocus?: keyof PlayerProfile['attributes'] | null;
+  matchStats?: {
+    goals?: number;
+    assists?: number;
+    rating?: number;
+  };
 }
