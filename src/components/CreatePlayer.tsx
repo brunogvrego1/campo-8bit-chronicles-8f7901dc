@@ -4,7 +4,6 @@ import { NationalityOption, PositionOption, PlayerProfile } from '@/lib/types';
 import { gameService } from '@/services/gameService';
 import { getDeepSeekChatCompletion } from '@/services/deepseekService';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCcw } from 'lucide-react';
 
 const nationalities: NationalityOption[] = [
   { code: 'BR', name: 'Brasil', flag: '🇧🇷', league: 'Brasileirão', startClub: '' },
@@ -36,7 +35,6 @@ const CreatePlayer = () => {
   const [position, setPosition] = useState<PositionOption | null>(null);
   const [startClub, setStartClub] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isClubRefreshing, setIsClubRefreshing] = useState(false);
   
   const handleNext = () => {
     setCreationStep(creationStep + 1);
@@ -94,29 +92,6 @@ const CreatePlayer = () => {
       return `${nationality.name} United`;
     } finally {
       setIsLoading(false);
-    }
-  };
-  
-  const handleRefreshClub = async () => {
-    setIsClubRefreshing(true);
-    try {
-      const newClub = await generateRandomClub();
-      if (newClub) {
-        setStartClub(newClub);
-        toast({
-          title: "Clube atualizado",
-          description: `Seu novo clube é: ${newClub}`,
-        });
-      }
-    } catch (error) {
-      console.error("Error refreshing club:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível atualizar o clube. Tente novamente.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsClubRefreshing(false);
     }
   };
   
@@ -347,7 +322,7 @@ const CreatePlayer = () => {
           <div className="flex flex-col items-center space-y-6">
             <h2 className="text-lg font-pixel cyan-text">Seu Clube</h2>
             
-            {isLoading || isClubRefreshing ? (
+            {isLoading ? (
               <div className="text-center py-4">
                 <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-cyan border-t-transparent"></div>
                 <p className="mt-2 text-sm">Procurando um clube...</p>
@@ -360,14 +335,6 @@ const CreatePlayer = () => {
                     <p className="text-xs mt-2">{nationality?.league || 'Liga'}</p>
                     <p className="text-xs mt-1">País: {nationality?.name || 'País'} {nationality?.flag}</p>
                   </div>
-                  <button 
-                    className="p-2 border-2 border-cyan hover:bg-cyan hover:bg-opacity-20 disabled:opacity-50"
-                    onClick={handleRefreshClub}
-                    disabled={isLoading || isClubRefreshing}
-                    title="Gerar outro clube"
-                  >
-                    <RefreshCcw size={18} />
-                  </button>
                 </div>
               </div>
             )}
@@ -383,7 +350,7 @@ const CreatePlayer = () => {
               <button 
                 className="retro-button"
                 onClick={handleNext}
-                disabled={isLoading || isClubRefreshing || !startClub}
+                disabled={isLoading || !startClub}
               >
                 PRÓXIMO
               </button>
